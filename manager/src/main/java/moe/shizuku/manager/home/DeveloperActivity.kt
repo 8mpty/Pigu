@@ -62,7 +62,7 @@ class DeveloperActivity : AppBarActivity() {
         adapter.updateData(
             homeModel.serviceStatus.value?.data ?: ServiceStatus(),
             appsModel.grantedCount.value?.data ?: 0,
-            CompanionApp.status(this)
+            CompanionApp.status(this, loadIdentity = true)
         )
     }
 

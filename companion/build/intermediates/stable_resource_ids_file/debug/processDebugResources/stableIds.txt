@@ -1,5 +1,0 @@
-moe.shizuku.privileged.api:string/app_name = 0x7f040000
-moe.shizuku.privileged.api:drawable/ic_pigu_foreground_inset = 0x7f020001
-moe.shizuku.privileged.api:mipmap/ic_launcher = 0x7f030000
-moe.shizuku.privileged.api:drawable/ic_pigu_foreground = 0x7f020000
-moe.shizuku.privileged.api:color/ic_pigu_background = 0x7f010000

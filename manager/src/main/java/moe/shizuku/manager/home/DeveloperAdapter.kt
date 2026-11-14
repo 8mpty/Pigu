@@ -27,8 +27,8 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         clear()
         addItem(ManageAppsViewHolder.CREATOR, status to grantedCount, ID_APPS)
         addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
-        addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
         addItem(CompanionViewHolder.CREATOR, companion, ID_COMPANION)
+        addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
         addItem(DeveloperGuideViewHolder.CREATOR, null, ID_DEVELOPER_GUIDE)
         notifyDataSetChanged()
     }

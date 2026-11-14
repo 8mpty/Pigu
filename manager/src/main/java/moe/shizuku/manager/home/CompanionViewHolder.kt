@@ -1,8 +1,10 @@
 package moe.shizuku.manager.home
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import moe.shizuku.manager.R
 import moe.shizuku.manager.databinding.CompanionItemBinding
@@ -27,24 +29,29 @@ class CompanionViewHolder(
     override fun onBind() {
         val context = itemView.context
         val status = data ?: CompanionApp.Status(false, null, false)
+        val version = status.versionName.orEmpty()
 
-        binding.text2.text = when {
-            !status.installed ->
-                context.getString(R.string.companion_summary_not_installed, CompanionApp.PACKAGE)
-            !status.signedByPigu ->
-                context.getString(R.string.companion_summary_other, CompanionApp.PACKAGE)
-            else ->
-                context.getString(
-                    R.string.companion_summary_installed,
-                    CompanionApp.PACKAGE,
-                    status.versionName ?: ""
-                )
+        val appIcon = status.icon
+        binding.icon.isVisible = appIcon != null
+        binding.placeholderIcon.isVisible = appIcon == null
+        appIcon?.let { binding.icon.setImageDrawable(it) }
+
+        binding.text1.text = status.label ?: context.getString(R.string.companion_title)
+        binding.text2.text = CompanionApp.PACKAGE
+        binding.text3.text = when {
+            !status.installed -> context.getString(R.string.companion_summary_not_installed)
+            !status.signedByPigu -> if (version.isNotBlank())
+                context.getString(R.string.companion_summary_other, version)
+            else context.getString(R.string.details_companion_other)
+            else -> if (version.isNotBlank())
+                context.getString(R.string.companion_summary_installed, version)
+            else context.getString(R.string.details_companion_installed)
         }
 
         itemView.setOnClickListener { showDialog(context, status) }
     }
 
-    private fun showDialog(context: android.content.Context, status: CompanionApp.Status) {
+    private fun showDialog(context: Context, status: CompanionApp.Status) {
         val builder = MaterialAlertDialogBuilder(context)
             .setTitle(R.string.companion_title)
             .setMessage(context.getString(R.string.companion_dialog_message, context.packageName, CompanionApp.PACKAGE))

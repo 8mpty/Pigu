@@ -3,6 +3,7 @@ package moe.shizuku.manager.utils
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.provider.Settings
 
@@ -17,10 +18,12 @@ object CompanionApp {
     data class Status(
         val installed: Boolean,
         val versionName: String?,
-        val signedByPigu: Boolean
+        val signedByPigu: Boolean,
+        val label: String? = null,
+        val icon: Drawable? = null
     )
 
-    fun status(context: Context): Status {
+    fun status(context: Context, loadIdentity: Boolean = false): Status {
         val pm = context.packageManager
         val info = try {
             pm.getPackageInfo(PACKAGE, 0)
@@ -34,7 +37,12 @@ object CompanionApp {
         } catch (e: Throwable) {
             false
         }
-        return Status(true, info.versionName, sameSignature)
+
+        val ai = info.applicationInfo
+        val label = if (loadIdentity) runCatching { ai?.loadLabel(pm)?.toString() }.getOrNull() else null
+        val icon = if (loadIdentity) runCatching { ai?.loadIcon(pm) }.getOrNull() else null
+
+        return Status(true, info.versionName, sameSignature, label, icon)
     }
 
     fun isInstalled(context: Context): Boolean = status(context).installed
