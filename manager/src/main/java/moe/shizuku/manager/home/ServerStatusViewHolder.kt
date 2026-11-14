@@ -5,10 +5,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import moe.shizuku.manager.R
 import moe.shizuku.manager.databinding.HomeItemContainerBinding
 import moe.shizuku.manager.databinding.HomeServerStatusBinding
 import moe.shizuku.manager.model.ServiceStatus
+import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.html.text.HtmlCompat
 import rikka.html.text.toHtml
 import rikka.recyclerview.BaseViewHolder
@@ -24,6 +27,23 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
             val outer = HomeItemContainerBinding.inflate(inflater, parent, false)
             val inner = HomeServerStatusBinding.inflate(inflater, outer.root, true)
             ServerStatusViewHolder(inner, outer.root)
+        }
+    }
+
+    init {
+        binding.buttonStop.setOnClickListener {
+            val context = it.context
+            if (!ShizukuStateMachine.isRunning()) return@setOnClickListener
+
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.dialog_stop_title)
+                .setMessage(R.string.dialog_stop_message_reactivate)
+                .setPositiveButton(R.string.stop_service) { _, _ ->
+                    ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
+                    runCatching { Shizuku.exit() }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
         }
     }
 
@@ -64,6 +84,8 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
         }
         textView.text = title.toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
         summaryView.text = summary.toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
+        binding.buttonStop.isVisible = ok
+
         if (TextUtils.isEmpty(summaryView.text)) {
             summaryView.visibility = View.GONE
         } else {

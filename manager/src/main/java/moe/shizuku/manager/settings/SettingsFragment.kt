@@ -12,7 +12,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.text.InputType
-import android.text.TextUtils
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -45,11 +44,9 @@ import moe.shizuku.manager.app.SnackbarHelper
 import moe.shizuku.manager.app.ThemeHelper
 import moe.shizuku.manager.ktx.isComponentEnabled
 import moe.shizuku.manager.ktx.setComponentEnabled
-import moe.shizuku.manager.ktx.toHtml
 import moe.shizuku.manager.receiver.BootCompleteReceiver
 import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
-import moe.shizuku.manager.utils.CustomTabsHelper
 import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.ShizukuStateMachine
@@ -59,7 +56,6 @@ import rikka.material.app.LocaleDelegate
 import rikka.recyclerview.addEdgeSpacing
 import rikka.recyclerview.addItemSpacing
 import rikka.recyclerview.fixEdgeEffect
-import rikka.shizuku.manager.ShizukuLocales
 import java.util.*
 
 class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener {
@@ -69,13 +65,9 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     private lateinit var tcpModePreference: TwoStatePreference
     private lateinit var tcpPortPreference: EditTextPreference
     private lateinit var languagePreference: ListPreference
-    private lateinit var translationPreference: Preference
-    private lateinit var translationContributorsPreference: Preference
     private lateinit var nightModePreference: IntegerSimpleMenuPreference
     private lateinit var blackNightThemePreference: TwoStatePreference
     private lateinit var useSystemColorPreference: TwoStatePreference
-    private lateinit var helpPreference: Preference
-    private lateinit var reportBugPreference: Preference
     private lateinit var legacyPairingPreference: TwoStatePreference
     private lateinit var advancedCategory: PreferenceCategory
 
@@ -102,13 +94,9 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
         tcpPortPreference = findPreference(KEY_TCP_PORT)!!
         languagePreference = findPreference(KEY_LANGUAGE)!!
-        translationPreference = findPreference(KEY_TRANSLATION)!!
-        translationContributorsPreference = findPreference(KEY_TRANSLATION_CONTRIBUTORS)!!
         nightModePreference = findPreference(KEY_NIGHT_MODE)!!
         blackNightThemePreference = findPreference(KEY_BLACK_NIGHT_THEME)!!
         useSystemColorPreference = findPreference(KEY_USE_SYSTEM_COLOR)!!
-        helpPreference = findPreference(KEY_HELP)!!
-        reportBugPreference = findPreference(KEY_REPORT_BUG)!!
         legacyPairingPreference = findPreference(KEY_LEGACY_PAIRING)!!
         advancedCategory = findPreference(KEY_CATEGORY_ADVANCED)!!
 
@@ -287,31 +275,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             } else isVisible = false
         }
 
-        translationPreference.apply {
-            summary = context.getString(R.string.settings_translation_summary, context.getString(R.string.app_name))
-            setOnPreferenceClickListener {
-                CustomTabsHelper.launchUrlOrCopy(context, context.getString(R.string.translation_url))
-                true
-            }
-        }
-
-        translationContributorsPreference.apply {
-            val contributors = context.getString(R.string.translation_contributors).toHtml().toString()
-            if (contributors.isNotBlank()) {
-                summary = contributors
-            } else isVisible = false
-        }
-
-        helpPreference.setOnPreferenceClickListener {
-            CustomTabsHelper.launchUrlOrCopy(context, context.getString(R.string.help_url))
-            true
-        }
-
-        reportBugPreference.setOnPreferenceClickListener {
-            BugReportDialog().show(parentFragmentManager, "BugReportDialog")
-            true
-        }
-
         legacyPairingPreference.apply {
             isVisible = !EnvironmentUtils.isTelevision()
         }
@@ -469,61 +432,22 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     }
 
     private fun setupLocalePreference(languagePreference: ListPreference) {
-        val localeTags = ShizukuLocales.LOCALES
-        val displayLocaleTags = ShizukuLocales.DISPLAY_LOCALES
+        val tags = arrayOf("SYSTEM", "en")
+        val entries = arrayOf(
+            getString(R.string.follow_system),
+            getString(R.string.language_english)
+        )
 
-        languagePreference.entries = displayLocaleTags
-        languagePreference.entryValues = localeTags
+        languagePreference.entries = entries
+        languagePreference.entryValues = tags
 
-        val currentLocaleTag = languagePreference.value
-        val currentLocaleIndex = localeTags.indexOf(currentLocaleTag)
-        val currentLocale = ShizukuSettings.getLocale()
-        val localizedLocales = mutableListOf<CharSequence>()
-
-        for ((index, displayLocale) in displayLocaleTags.withIndex()) {
-            if (index == 0) {
-                localizedLocales.add(getString(R.string.follow_system))
-                continue
-            }
-
-            val locale = Locale.forLanguageTag(displayLocale.toString())
-            val localeName = if (!TextUtils.isEmpty(locale.script))
-                locale.getDisplayScript(locale)
-            else
-                locale.getDisplayName(locale)
-
-            val localizedLocaleName = if (!TextUtils.isEmpty(locale.script))
-                locale.getDisplayScript(currentLocale)
-            else
-                locale.getDisplayName(currentLocale)
-
-            localizedLocales.add(
-                if (index != currentLocaleIndex) {
-                    "$localeName<br><small>$localizedLocaleName<small>".toHtml()
-                } else {
-                    localizedLocaleName
-                }
-            )
+        val current = languagePreference.value
+        if (current != "SYSTEM" && current != "en") {
+            languagePreference.value = "SYSTEM"
         }
 
-        languagePreference.entries = localizedLocales.toTypedArray()
-
-        languagePreference.summary = when {
-            TextUtils.isEmpty(currentLocaleTag) || "SYSTEM" == currentLocaleTag -> {
-                getString(R.string.follow_system)
-            }
-            currentLocaleIndex != -1 -> {
-                val localizedLocale = localizedLocales[currentLocaleIndex]
-                val newLineIndex = localizedLocale.indexOf('\n')
-                if (newLineIndex == -1) {
-                    localizedLocale.toString()
-                } else {
-                    localizedLocale.subSequence(0, newLineIndex).toString()
-                }
-            }
-            else -> {
-                ""
-            }
-        }
+        languagePreference.summary =
+            if (languagePreference.value == "en") getString(R.string.language_english)
+            else getString(R.string.follow_system)
     }
 }

@@ -15,7 +15,6 @@ An Android app that allows other apps to use system-level APIs that require ADB/
 [![Bug Reports](https://img.shields.io/github/issues-search/thedjchi/Shizuku?query=label%3Abug%20state%3Aopen&style=for-the-badge&color=bf3030&labelColor=802020&label=Bug%20Reports)](https://github.com/thedjchi/Shizuku/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug)
 [![Feature Requests](https://img.shields.io/github/issues-search/thedjchi/Shizuku?query=label%3Aenhancement%20state%3Aopen&style=for-the-badge&color=30a7bf&labelColor=207080&label=Feature%20Requests)](https://github.com/thedjchi/Shizuku/issues?q=is%3Aissue%20state%3Aopen%20label%3Aenhancement)
 
-[![Translate on Crowdin](https://img.shields.io/badge/Translate%20on%20Crowdin-2e3340?style=for-the-badge&logo=crowdin&logoColor=ffffff)](https://crowdin.com/project/shizuku)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-bfb330?style=for-the-badge&logo=buymeacoffee&logoColor=ffffff)](https://www.buymeacoffee.com/thedjchi)
 
 </div>
@@ -24,7 +23,7 @@ An Android app that allows other apps to use system-level APIs that require ADB/
 
 This is a **FORK** of Shizuku. If you are looking for the original version, please visit the [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku) repository.
 
-This fork is built under the application id `com.empty.pigu` and no longer includes stealth/hidden mode.
+This fork is built under the application id `com.empty.pigu`, no longer includes stealth/hidden mode, and ships in English only.
 
 ## ⬇️ Download
 
@@ -77,10 +76,6 @@ Shizuku takes user privacy very seriously.
 * **FOREGROUND_SERVICE:** prevents watchdog from being killed
 * **REQUEST_IGNORE_BATTERY_OPTIMIZATIONS:** prevents start on boot and watchdog services from being killed
 * **WRITE_SECURE_SETTINGS:** used to toggle USB and wireless debugging in the background when starting/stopping Shizuku
-
-## 🌎 Translations
-
-Contribute translations through the [Crowdin project](https://crowdin.com/project/shizuku).
 
 ## 🎁 Donations
 

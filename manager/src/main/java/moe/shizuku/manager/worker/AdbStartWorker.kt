@@ -128,6 +128,7 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 }
             }.first()
             
+            ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.WIRELESS_ADB)
             AdbStarter.startAdb(applicationContext, port)
             Starter.waitForBinder()
 

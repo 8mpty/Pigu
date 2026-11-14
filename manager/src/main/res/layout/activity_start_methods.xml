@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/wireless_card"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="?colorSurfaceContainerLow"
+            app:cardCornerRadius="28dp"
+            app:contentPadding="24dp">
+
+            <LinearLayout style="@style/Card.Large">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_wadb_24" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/home_icon_padding"
+                        android:layout_weight="1"
+                        android:text="@string/home_wireless_adb_title" />
+
+                </LinearLayout>
+
+                <TextView
+                    style="@style/CardSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/start_wireless_summary" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/wireless_pair"
+                        style="@style/CardButton"
+                        android:text="@string/home_start_pair"
+                        app:icon="@drawable/ic_baseline_link_24" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/wireless_start"
+                        style="@style/CardButton"
+                        android:text="@string/home_root_button_start"
+                        app:icon="@drawable/ic_server_start_24dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/adb_card"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="?colorSurfaceContainerLow"
+            app:cardCornerRadius="28dp"
+            app:contentPadding="24dp">
+
+            <LinearLayout style="@style/Card.Large">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_adb_24dp" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/home_icon_padding"
+                        android:layout_weight="1"
+                        android:text="@string/home_adb_title" />
+
+                </LinearLayout>
+
+                <TextView
+                    style="@style/CardSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/start_adb_summary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/adb_button"
+                    style="@style/CardButton"
+                    android:text="@string/home_adb_button_view_command"
+                    app:icon="@drawable/ic_code_24dp" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/root_card"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="?colorSurfaceContainerLow"
+            app:cardCornerRadius="28dp"
+            app:contentPadding="24dp"
+            tools:alpha="0.5">
+
+            <LinearLayout style="@style/Card.Large">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_root_24dp" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/home_icon_padding"
+                        android:layout_weight="1"
+                        android:text="@string/home_root_title" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/root_summary"
+                    style="@style/CardSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/start_root_summary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/root_start"
+                    style="@style/CardButton"
+                    android:text="@string/home_root_button_start"
+                    app:icon="@drawable/ic_server_start_24dp" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</ScrollView>

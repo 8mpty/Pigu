@@ -2,7 +2,6 @@
     <string name="app_name" translatable="false">Pigu</string>
 
     <!-- To translators: you can leave your here -->
-    <string name="translation_contributors" />
 
     <!-- Home - Status -->
     <string name="home_status_service_is_running">%1$s is running</string>
@@ -99,6 +98,39 @@
     <string name="home_adb_is_limited_title">You need to take an extra step</string>
     <string name="home_adb_is_limited_description">Your device manufacturer has restricted adb permissions and apps using Shizuku will not work properly.\n\nUsually, this limitation can be lifted by adjusting some options in \"Developer options\". Please read the help for details on how to do this.\n\nYou may need to restart Shizuku for the operation to take effect.</string>
 
+    <!-- Home - Pairing methods -->
+    <string name="home_pairing_methods_title">Pairing methods</string>
+    <string name="home_pairing_methods_description">Choose how to start Shizuku</string>
+    <string name="start_methods_title">Pairing methods</string>
+    <string name="home_start_pair">Pair</string>
+    <string name="start_wireless_summary">Start Shizuku over Wi-Fi using wireless debugging.</string>
+    <string name="start_adb_summary">Start Shizuku by running the adb command from a computer.</string>
+    <string name="start_root_summary">Start Shizuku with root (Magisk, KernelSU, or similar).</string>
+    <string name="start_root_unavailable">Root was not detected on this device.</string>
+    <string name="stop_service">Stop</string>
+    <string name="dialog_stop_title">Stop Shizuku?</string>
+    <string name="dialog_stop_message_reactivate">Shizuku will stop and all apps using it will lose access. You will need to start Shizuku again and re-pair or re-activate it before apps can use it.</string>
+
+    <!-- Home - Details -->
+    <string name="details_title">App &amp; service details</string>
+    <string name="details_pigu_version">Pigu version</string>
+    <string name="details_shizuku_version">Shizuku version</string>
+    <string name="details_android_version">Android version</string>
+    <string name="details_abi">ABI</string>
+    <string name="details_pairing_method">Pairing method</string>
+    <string name="details_authorized_apps">Authorized apps</string>
+    <string name="details_start_on_boot">Start on boot</string>
+    <string name="details_tcp_mode">TCP mode</string>
+    <string name="details_tcp_port">TCP port</string>
+    <string name="details_pairing_root">Root</string>
+    <string name="details_pairing_wireless">Wireless debugging</string>
+    <string name="details_pairing_adb">ADB (computer)</string>
+    <string name="details_pairing_unknown">Unknown</string>
+    <string name="details_not_running">Not running</string>
+    <string name="details_enabled">Enabled</string>
+    <string name="details_disabled">Disabled</string>
+    <string name="details_unavailable">—</string>
+
     <!-- Home - Dialogs -->
     <string name="home_dialog_reboot_required_title">Reboot required</string>
     <string name="home_dialog_reboot_required_message">A device reboot is required for Shizuku to work properly. To continue, please reboot your device.</string>
@@ -147,14 +179,11 @@
     <string name="settings_auto_disable_usb_debugging">Auto-disable USB debugging</string>
     <string name="settings_auto_disable_usb_debugging_summary">Disable USB debugging when stopping Shizuku</string>
     <string name="settings_language">Language</string>
-    <string name="settings_translation_contributors">Translation contributors</string>
-    <string name="settings_translation">Participate in translation</string>
-    <string name="settings_translation_summary">Help us translate %s into your language</string>
     <string name="settings_user_interface">Appearance</string>
     <string name="settings_black_night_theme">Black night theme</string>
     <string name="settings_black_night_theme_summary">Use the pure black theme if night mode is enabled</string>
-    <string name="settings_support">Support</string>
-    <string name="settings_help">Help</string>
+    <string name="developer_title">Developer</string>
+    <string name="language_english" translatable="false">English</string>
     <string name="settings_report_bug">Report a bug</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_legacy_pairing">Legacy pairing</string>

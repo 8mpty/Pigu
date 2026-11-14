@@ -24,6 +24,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import moe.shizuku.manager.AppConstants.EXTRA
 import moe.shizuku.manager.R
+import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.AdbKeyException
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.AppBarActivity
@@ -89,10 +90,17 @@ class StarterActivity : AppBarActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && !hasStarted) {
             hasStarted = true
-            viewModel.start(
-                intent.getBooleanExtra(EXTRA_IS_ROOT, false),
-                intent.getIntExtra(EXTRA_PORT, 0)
+            val root = intent.getBooleanExtra(EXTRA_IS_ROOT, false)
+            val port = intent.getIntExtra(EXTRA_PORT, 0)
+
+            ShizukuSettings.setLastLaunchMode(
+                when {
+                    root -> ShizukuSettings.LaunchMethod.ROOT
+                    port != 0 -> ShizukuSettings.LaunchMethod.WIRELESS_ADB
+                    else -> ShizukuSettings.LaunchMethod.ADB
+                }
             )
+            viewModel.start(root, port)
         }
     }
 

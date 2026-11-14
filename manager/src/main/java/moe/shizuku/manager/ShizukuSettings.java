@@ -30,14 +30,10 @@ public class ShizukuSettings {
         public static final String KEY_TCP_PORT = "tcp_port";
         public static final String KEY_AUTO_DISABLE_USB_DEBUGGING = "auto_disable_usb_debugging";
         public static final String KEY_LANGUAGE = "language";
-        public static final String KEY_TRANSLATION = "translation";
-        public static final String KEY_TRANSLATION_CONTRIBUTORS = "translation_contributors";
         public static final String KEY_LIGHT_THEME = "light_theme";
         public static final String KEY_NIGHT_MODE = "night_mode";
         public static final String KEY_BLACK_NIGHT_THEME = "black_night_theme";
         public static final String KEY_USE_SYSTEM_COLOR = "use_system_color";
-            public static final String KEY_HELP = "help";
-        public static final String KEY_REPORT_BUG = "report_bug";
         public static final String KEY_LEGACY_PAIRING = "legacy_pairing";
         public static final String KEY_CATEGORY_ADVANCED = "category_advanced";
     }
@@ -83,12 +79,14 @@ public class ShizukuSettings {
         LaunchMethod.UNKNOWN,
         LaunchMethod.ROOT,
         LaunchMethod.ADB,
+        LaunchMethod.WIRELESS_ADB,
     })
     @Retention(SOURCE)
     public @interface LaunchMethod {
         int UNKNOWN = -1;
         int ROOT = 0;
         int ADB = 1;
+        int WIRELESS_ADB = 2;
     }
 
     @LaunchMethod
@@ -192,10 +190,12 @@ public class ShizukuSettings {
 
     public static Locale getLocale() {
         String tag = getPreferences().getString(Keys.KEY_LANGUAGE, null);
-        if (TextUtils.isEmpty(tag) || "SYSTEM".equals(tag)) {
-            return Locale.getDefault();
+        // Only English and follow-system are supported; treat any other
+        // stored tag as follow-system.
+        if ("en".equals(tag)) {
+            return Locale.forLanguageTag("en");
         }
-        return Locale.forLanguageTag(tag);
+        return Locale.getDefault();
     }
 
 }
