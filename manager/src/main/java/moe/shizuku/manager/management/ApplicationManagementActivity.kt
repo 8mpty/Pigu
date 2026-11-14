@@ -2,10 +2,12 @@ package moe.shizuku.manager.management
 
 import android.os.Bundle
 import android.util.TypedValue
+import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.RecyclerView.AdapterDataObserver
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import moe.shizuku.manager.Helps
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppBarActivity
@@ -39,6 +41,7 @@ class ApplicationManagementActivity : AppBarActivity() {
         val binding = AppsActivityBinding.inflate(layoutInflater, rootView, true)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = getString(R.string.home_app_management_title)
 
         viewModel.packages.observe(this) {
             when (it.status) {
@@ -75,6 +78,23 @@ class ApplicationManagementActivity : AppBarActivity() {
     override fun onDestroy() {
         ShizukuStateMachine.removeListener(stateListener)
         super.onDestroy()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.app_management, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_companion_info) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.app_management_companion_info_title)
+                .setMessage(R.string.app_management_companion_info_message)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     override fun onResume() {

@@ -69,7 +69,7 @@
     <string name="home_root_button_restart">Restart</string>
 
     <!-- Home - Application management -->
-    <string name="home_app_management_title">Application management</string>
+    <string name="home_app_management_title">App Management</string>
     <plurals name="home_app_management_authorized_apps_count">
         <item quantity="one"><![CDATA[Authorized %d application]]></item>
         <item quantity="other"><![CDATA[Authorized %d applications]]></item>
@@ -119,6 +119,10 @@
     <string name="details_abi">ABI</string>
     <string name="details_pairing_method">Pairing method</string>
     <string name="details_authorized_apps">Authorized apps</string>
+    <string name="details_companion">Companion app</string>
+    <string name="details_companion_installed">Installed</string>
+    <string name="details_companion_not_installed">Not installed</string>
+    <string name="details_companion_other">Other app</string>
     <string name="details_start_on_boot">Start on boot</string>
     <string name="details_tcp_mode">TCP mode</string>
     <string name="details_tcp_port">TCP port</string>
@@ -183,6 +187,16 @@
     <string name="settings_black_night_theme">Black night theme</string>
     <string name="settings_black_night_theme_summary">Use the pure black theme if night mode is enabled</string>
     <string name="developer_title">Developer</string>
+    <string name="companion_title">Companion app</string>
+    <string name="companion_summary_not_installed">Not installed — %1$s (optional)</string>
+    <string name="companion_summary_installed">Installed — %1$s (%2$s)</string>
+    <string name="companion_summary_other">%1$s is used by another app</string>
+    <string name="companion_dialog_message">Pigu uses the package %1$s. Some apps check specifically for the official Shizuku package %2$s and refuse to work when it is missing.\n\nThe companion is an empty, non-launchable app with that package name. It does not run a service or ask for permissions — Pigu still provides Shizuku.\n\nIf installed: apps that hard-check the package can find Pigu. If not installed: apps using the normal Shizuku API still work, but apps with a hard package check may report that Shizuku is missing.\n\nThe companion cannot be installed while the official Shizuku app (or a fork using that package) is installed.</string>
+    <string name="companion_open_settings">App info</string>
+    <string name="companion_close">Close</string>
+    <string name="app_management_may_require_companion">May require companion app</string>
+    <string name="app_management_companion_info_title">Companion app</string>
+    <string name="app_management_companion_info_message">Apps in this list may need the Pigu Companion if they specifically check for Shizuku and cannot detect Pigu. Many apps work without it, so install it only if an app reports that Shizuku is missing.\n\nThe companion uses the official Shizuku package name (moe.shizuku.privileged.api). It does not provide the service; Pigu still does. Its status and uninstall options are on the Developer page.</string>
     <string name="language_english" translatable="false">English</string>
     <string name="settings_report_bug">Report a bug</string>
     <string name="settings_advanced">Advanced</string>

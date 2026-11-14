@@ -1,0 +1,7 @@
+com.empty.pigu.companion-pngs-0 /home/empty/Documents/GitHub/Pigu/companion/build/generated/res/pngs/debug
+com.empty.pigu.companion-resValues-1 /home/empty/Documents/GitHub/Pigu/companion/build/generated/res/resValues/debug
+com.empty.pigu.companion-mergeDebugResources-2 /home/empty/Documents/GitHub/Pigu/companion/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.empty.pigu.companion-mergeDebugResources-3 /home/empty/Documents/GitHub/Pigu/companion/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.empty.pigu.companion-debug-4 /home/empty/Documents/GitHub/Pigu/companion/build/intermediates/merged_res/debug/mergeDebugResources
+com.empty.pigu.companion-debug-5 /home/empty/Documents/GitHub/Pigu/companion/src/debug/res
+com.empty.pigu.companion-main-6 /home/empty/Documents/GitHub/Pigu/companion/src/main/res

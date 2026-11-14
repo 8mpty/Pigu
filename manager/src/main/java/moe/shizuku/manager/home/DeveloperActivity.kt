@@ -7,6 +7,7 @@ import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.databinding.HomeActivityBinding
 import moe.shizuku.manager.management.AppsViewModel
 import moe.shizuku.manager.model.ServiceStatus
+import moe.shizuku.manager.utils.CompanionApp
 import rikka.core.ktx.unsafeLazy
 import rikka.lifecycle.Status
 import rikka.recyclerview.addEdgeSpacing
@@ -54,12 +55,14 @@ class DeveloperActivity : AppBarActivity() {
         super.onResume()
         homeModel.reload()
         appsModel.load()
+        updateData()
     }
 
     private fun updateData() {
         adapter.updateData(
             homeModel.serviceStatus.value?.data ?: ServiceStatus(),
-            appsModel.grantedCount.value?.data ?: 0
+            appsModel.grantedCount.value?.data ?: 0,
+            CompanionApp.status(this)
         )
     }
 

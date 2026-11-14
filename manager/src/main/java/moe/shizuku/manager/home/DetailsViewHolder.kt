@@ -11,6 +11,7 @@ import moe.shizuku.manager.databinding.HomeDetailRowBinding
 import moe.shizuku.manager.databinding.HomeDetailsBinding
 import moe.shizuku.manager.databinding.HomeItemContainerBinding
 import moe.shizuku.manager.model.ServiceStatus
+import moe.shizuku.manager.utils.CompanionApp
 import moe.shizuku.manager.utils.EnvironmentUtils
 import rikka.recyclerview.BaseViewHolder
 import rikka.recyclerview.BaseViewHolder.Creator
@@ -84,6 +85,16 @@ class DetailsViewHolder(
         add(
             R.string.details_authorized_apps,
             if (status.isRunning) "${details.authorizedApps}/${details.totalApps}" else unavailable
+        )
+
+        val companion = CompanionApp.status(context)
+        add(
+            R.string.details_companion,
+            when {
+                !companion.installed -> context.getString(R.string.details_companion_not_installed)
+                !companion.signedByPigu -> context.getString(R.string.details_companion_other)
+                else -> context.getString(R.string.details_companion_installed)
+            }
         )
 
         add(

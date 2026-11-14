@@ -1,0 +1,45 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="moe.shizuku.privileged.api"
+4    android:versionCode="1365"
+5    android:versionName="13.7.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="37" />
+10
+11    <queries>
+11-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:4:5-6:15
+12        <package android:name="com.empty.pigu" />
+12-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:5:9-50
+12-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:5:18-47
+13    </queries>
+14
+15    <application
+15-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:8:5-22:19
+16        android:allowBackup="false"
+16-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:9:9-36
+17        android:debuggable="true"
+18        android:extractNativeLibs="false"
+19        android:icon="@mipmap/ic_launcher"
+19-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:10:9-43
+20        android:label="@string/app_name"
+20-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:11:9-41
+21        android:supportsRtl="true" >
+21-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:12:9-35
+22        <receiver
+22-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:14:9-20:20
+23            android:name="com.empty.pigu.companion.BinderRequestReceiver"
+23-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:15:13-50
+24            android:exported="true" >
+24-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:16:13-36
+25            <intent-filter>
+25-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:17:13-19:29
+26                <action android:name="rikka.shizuku.intent.action.REQUEST_BINDER" />
+26-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:18:17-85
+26-->/home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:18:25-82
+27            </intent-filter>
+28        </receiver>
+29    </application>
+30
+31</manifest>

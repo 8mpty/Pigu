@@ -1,0 +1,53 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:2:1-24:12
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:2:1-24:12
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:2:1-24:12
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:2:1-24:12
+	package
+		INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:2:11-69
+queries
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:4:5-6:15
+package#com.empty.pigu
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:5:9-50
+	android:name
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:5:18-47
+application
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:8:5-22:19
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:8:5-22:19
+	android:extractNativeLibs
+		INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+	android:supportsRtl
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:12:9-35
+	android:label
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:11:9-41
+	android:icon
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:10:9-43
+	android:allowBackup
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:9:9-36
+receiver#com.empty.pigu.companion.BinderRequestReceiver
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:14:9-20:20
+	android:exported
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:16:13-36
+	android:name
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:15:13-50
+intent-filter#action:name:rikka.shizuku.intent.action.REQUEST_BINDER
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:17:13-19:29
+action#rikka.shizuku.intent.action.REQUEST_BINDER
+ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:18:17-85
+	android:name
+		ADDED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml:18:25-82
+uses-sdk
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/empty/Documents/GitHub/Pigu/companion/src/main/AndroidManifest.xml

@@ -1,0 +1,36 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.empty.pigu.companion-mergeDebugResources-2:/values/values.xml",
+            "map": [
+                {
+                    "source": "/home/empty/Documents/GitHub/Pigu/companion/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    },
+                    "to": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "108",
+                        "endColumns": "72",
+                        "endOffsets": "176"
+                    }
+                },
+                {
+                    "source": "/home/empty/Documents/GitHub/Pigu/companion/src/main/res/values/ic_pigu_background.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "52",
+                        "endOffsets": "103"
+                    }
+                }
+            ]
+        }
+    ]
+}
