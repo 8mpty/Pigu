@@ -40,9 +40,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val shouldShowUninstallDialog: LiveData<Boolean> = _shouldShowUninstallDialog
 
     private fun load(): ServiceStatus {
-        // In certain cases when user re-installs Shizuku with different package name (e.g., when using stealth mode), the system doesn't recognize the Shizuku permission.
-        // As a result, all permission operations (check/grant/revoke) will fail.
-        // This is fixed by rebooting the device.
+        // If another copy of the app (with a different package name) is installed, the system may not
+        // associate the Shizuku permission with this package, and all permission operations
+        // (check/grant/revoke) will fail. This is fixed by uninstalling the duplicate and rebooting.
         // Run getPermissionGroupInfo() to trigger the exception. Then catch it and show a dialog prompting the user to reboot their device.
         try {
             val permissionGroup = appContext.packageManager.getPermissionGroupInfo(Manifest.permission_group.API, 0)

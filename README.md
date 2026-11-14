@@ -24,6 +24,8 @@ An Android app that allows other apps to use system-level APIs that require ADB/
 
 This is a **FORK** of Shizuku. If you are looking for the original version, please visit the [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku) repository.
 
+This fork is built under the application id `com.empty.pigu` and no longer includes stealth/hidden mode.
+
 ## ⬇️ Download
 
 Get the latest [stable](https://github.com/thedjchi/Shizuku/releases/latest) or [beta](https://github.com/thedjchi/Shizuku/releases) version.
@@ -37,8 +39,6 @@ This version of Shizuku includes some extra features over the original version, 
 * **TCP mode:** (i.e., the `adb tcpip` command) once Shizuku successfully starts with Wi-Fi after a reboot, you can stop/restart Shizuku without a Wi-Fi connection!
 * **Watchdog service:** automatically restarts Shizuku if it stops unexpectedly, and can alert you of crashes/potential fixes
 * **Start/stop intents:** toggle Shizuku on-demand using automation apps (e.g., Tasker, MacroDroid, Automate)
-* **[BETA] Stealth mode:** hide Shizuku from other apps that don't work when Shizuku is installed
-* **[BETA] In-app updates:** option to automatically check for new updates, and can automatically download/install the latest version from GitHub
 * **Android/Google TV and VR headset support:** UI is now compatible with D-Pad remotes, all TVs are supported (including Android 14+ TVs that require pairing), and the multi-window pairing dialog is toggleable in settings for VR headsets
 * **MediaTek support:** fixes a critical bug in the original v13.6.0 which prevented Shizuku from working on MediaTek devices
 * And more!
@@ -65,20 +65,18 @@ Shizuku takes user privacy very seriously.
 * No Google Play Services
 * Open-source codebase
 * Reproducible builds
-* Internet access is only used for wireless debugging connections and to fetch updates from GitHub
+* Internet access is only used for wireless debugging connections
 * Only required permissions are declared
 
 ### Permissions
 
-* **INTERNET:** required for the wireless debugging start mode to work. Also used to fetch updates from GitHub
+* **INTERNET:** required for the wireless debugging start mode to work
 * **ACCESS_NETWORK_STATE:** used to determine when Wi-Fi is available for background start via wireless debugging
 * **POST_NOTIFICATIONS:** required for pairing notification and other alerts
 * **RECEIVE_BOOT_COMPLETED:** required for start on boot
 * **FOREGROUND_SERVICE:** prevents watchdog from being killed
 * **REQUEST_IGNORE_BATTERY_OPTIMIZATIONS:** prevents start on boot and watchdog services from being killed
 * **WRITE_SECURE_SETTINGS:** used to toggle USB and wireless debugging in the background when starting/stopping Shizuku
-* **REQUEST_DELETE_PACKAGES:** used to request uninstall for Shizuku/stub when using stealth mode
-* **REQUEST_INSTALL_PACKAGES:** used to request install for app updates, as well as Shizuku stub when using stealth mode
 
 ## 🌎 Translations
 
