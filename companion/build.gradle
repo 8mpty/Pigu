@@ -27,7 +27,7 @@ android {
 
 android.applicationVariants.all { variant ->
     variant.outputs.all {
-        outputFileName = "pigu-companion-v${variant.versionName}-${variant.name}.apk"
+        outputFileName = "pigu-companion-${variant.name}.apk"
     }
 }
 
