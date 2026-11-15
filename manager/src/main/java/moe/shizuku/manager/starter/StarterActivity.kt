@@ -1,8 +1,10 @@
 package moe.shizuku.manager.starter
 
 import android.app.Application
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -17,27 +19,37 @@ import javax.net.ssl.SSLProtocolException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import moe.shizuku.manager.AppConstants.EXTRA
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.AdbKeyException
+import moe.shizuku.manager.adb.AdbMdns
+import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import moe.shizuku.manager.databinding.StarterActivityBinding
+import rikka.core.util.ClipboardUtils
 import rikka.lifecycle.Resource
 import rikka.lifecycle.Status
 
 private class NotRootedException: Exception()
 
+private const val DISCOVERY_TIMEOUT_MS = 15_000L
+
 class StarterActivity : AppBarActivity() {
 
     private val viewModel: ViewModel by viewModels()
+
+    private lateinit var binding: StarterActivityBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,15 +57,17 @@ class StarterActivity : AppBarActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setHomeAsUpIndicator(R.drawable.ic_close_24)
 
-        val binding = StarterActivityBinding.inflate(layoutInflater, rootView, true)
+        binding = StarterActivityBinding.inflate(layoutInflater, rootView, true)
+
+        binding.copy.setOnClickListener {
+            if (ClipboardUtils.put(this, binding.text1.text)) {
+                Toast.makeText(this, R.string.toast_copied_to_clipboard, Toast.LENGTH_SHORT).show()
+            }
+        }
 
         viewModel.output.observe(this) {
             val output = it.data!!.trim()
-            if (output.endsWith(Starter.serviceStartedMessage)) {
-                window?.decorView?.postDelayed({
-                    if (!isFinishing) finish()
-                }, 3000)
-            } else if (it.status == Status.ERROR) {
+            if (it.status == Status.ERROR) {
                 var message = 0
                 when (it.error) {
                     is AdbKeyException -> {
@@ -92,15 +106,16 @@ class StarterActivity : AppBarActivity() {
             hasStarted = true
             val root = intent.getBooleanExtra(EXTRA_IS_ROOT, false)
             val port = intent.getIntExtra(EXTRA_PORT, 0)
+            val discoverWireless = intent.getBooleanExtra(EXTRA_DISCOVER_WIRELESS, false)
 
             ShizukuSettings.setLastLaunchMode(
                 when {
                     root -> ShizukuSettings.LaunchMethod.ROOT
-                    port != 0 -> ShizukuSettings.LaunchMethod.WIRELESS_ADB
+                    port != 0 || discoverWireless -> ShizukuSettings.LaunchMethod.WIRELESS_ADB
                     else -> ShizukuSettings.LaunchMethod.ADB
                 }
             )
-            viewModel.start(root, port)
+            viewModel.start(root, port, discoverWireless)
         }
     }
 
@@ -108,6 +123,7 @@ class StarterActivity : AppBarActivity() {
 
         const val EXTRA_IS_ROOT = "$EXTRA.IS_ROOT"
         const val EXTRA_PORT = "$EXTRA.PORT"
+        const val EXTRA_DISCOVER_WIRELESS = "$EXTRA.DISCOVER_WIRELESS"
     }
 }
 
@@ -127,7 +143,7 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
 
     private var started = false
 
-    fun start(root: Boolean, port: Int) {
+    fun start(root: Boolean, port: Int, discoverWireless: Boolean) {
         if (started) return
         started = true
 
@@ -136,16 +152,61 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
                 startRoot()
                 Starter.waitForBinder { log(it) }
             } else {
+                var attemptedAdb = false
                 try {
-                    AdbStarter.startAdb(appContext, port) { log(it) }
+                    val actualPort =
+                        if (discoverWireless && port == 0) discoverWirelessPort() else port
+                    attemptedAdb = true
+                    AdbStarter.startAdb(appContext, actualPort) { log(it) }
                     Starter.waitForBinder { log(it) }
                     AdbStarter.finishWirelessStart(appContext, success = true)
                 } catch (e: Throwable) {
-                    AdbStarter.finishWirelessStart(appContext, success = false)
+                    // A discovery failure did not touch wireless debugging; leave it on
+                    // so the user can retry without pairing again.
+                    if (attemptedAdb) {
+                        AdbStarter.finishWirelessStart(appContext, success = false)
+                    }
                     throw e
                 }
             }
         }
+    }
+
+    /**
+     * Finds the port adbd advertises for wireless debugging. The Starter screen is
+     * started straight after pairing, so this is the step that used to live in the
+     * separate discovery dialog.
+     */
+    private suspend fun discoverWirelessPort(): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            throw SocketTimeoutException("Wireless debugging requires Android 11")
+        }
+
+        log("Searching for wireless debugging...\n")
+        if (!AdbSettings.setWirelessDebuggingEnabled(appContext, true)) {
+            log("Could not enable wireless debugging automatically.\n")
+        }
+
+        val port = try {
+            withTimeout(DISCOVERY_TIMEOUT_MS) {
+                val found = CompletableDeferred<Int>()
+                val mdns = AdbMdns(appContext, AdbMdns.TLS_CONNECT) { pair ->
+                    val discovered = pair.second
+                    if (discovered in 1..65535) found.complete(discovered)
+                }
+                try {
+                    mdns.start()
+                    found.await()
+                } finally {
+                    mdns.stop()
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            throw SocketTimeoutException("Timed out searching for wireless debugging")
+        }
+
+        log("Found wireless debugging port: $port\n")
+        return port
     }
 
     private fun log(line: String? = null, error: Throwable? = null) {

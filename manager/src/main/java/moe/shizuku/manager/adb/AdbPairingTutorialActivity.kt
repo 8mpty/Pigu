@@ -5,7 +5,10 @@ import android.app.AppOpsManager
 import android.app.ForegroundServiceStartNotAllowedException
 import android.app.NotificationManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,11 +17,13 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import moe.shizuku.manager.AppConstants
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.databinding.AdbPairingTutorialActivityBinding
+import moe.shizuku.manager.starter.StarterActivity
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.SettingsPage
 import rikka.compatibility.DeviceCompatibility
@@ -30,6 +35,16 @@ class AdbPairingTutorialActivity : AppBarActivity() {
 
     private var notificationEnabled: Boolean = false
 
+    private val pairingSucceededReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AdbPairingService.ACTION_PAIRING_SUCCEEDED &&
+                !isFinishing && !isDestroyed
+            ) {
+                openStarter()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val context = this
@@ -37,6 +52,13 @@ class AdbPairingTutorialActivity : AppBarActivity() {
         binding = AdbPairingTutorialActivityBinding.inflate(layoutInflater, rootView, true)
         
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        ContextCompat.registerReceiver(
+            this,
+            pairingSucceededReceiver,
+            IntentFilter(AdbPairingService.ACTION_PAIRING_SUCCEEDED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         notificationEnabled = isNotificationEnabled()
 
@@ -93,6 +115,20 @@ class AdbPairingTutorialActivity : AppBarActivity() {
                 startPairingService()
             }
         }
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(pairingSucceededReceiver) }
+        super.onDestroy()
+    }
+
+    private fun openStarter() {
+        startActivity(
+            Intent(this, StarterActivity::class.java).apply {
+                putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
+            }
+        )
+        finish()
     }
 
     // Android 17 (SDK 37) gates local-network access behind ACCESS_LOCAL_NETWORK;

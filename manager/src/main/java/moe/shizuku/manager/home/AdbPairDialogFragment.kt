@@ -29,6 +29,7 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.*
 import moe.shizuku.manager.databinding.AdbPairDialogBinding
+import moe.shizuku.manager.starter.StarterActivity
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.SettingsPage
 import java.net.ConnectException
@@ -125,6 +126,9 @@ class AdbPairDialogFragment : DialogFragment() {
 
         viewModel.result.observe(this) {
             if (it == null) {
+                context.startActivity(Intent(context, StarterActivity::class.java).apply {
+                    putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
+                })
                 dismissAllowingStateLoss()
             } else {
                 when (it) {

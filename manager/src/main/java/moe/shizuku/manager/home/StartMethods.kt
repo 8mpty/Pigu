@@ -54,15 +54,17 @@ object StartMethods {
         // If ADB is NOT listening to a TCP port and the device doesn't support TLS, inform the user
         if (tcpPort <= 0 && !EnvironmentUtils.isTlsSupported()) {
             WadbNotEnabledDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
-        // If ADB IS NOT listening to a TCP port but the device supports TLS, start mDns discovery
+        // If ADB IS NOT listening to a TCP port but the device supports TLS, let the Starter
+        // screen discover the mDNS port and show each step there.
         } else if (tcpPort <= 0) {
-            AdbDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
-        // If ADB IS listening to a TCP port but the user wants to close it and use TLS instead, close the TCP port and start mDns discovery
+            startWirelessDiscovery(context)
+        // If ADB IS listening to a TCP port but the user wants to close it and use TLS instead,
+        // close the TCP port and then show the Starter screen's discovery output.
         } else if (!tcpMode) {
             scope.launch {
                 AdbStarter.stopTcp(context, tcpPort)
+                startWirelessDiscovery(context)
             }
-            AdbDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
         // Otherwise ADB IS listening to a TCP port and the user wants to keep it open. Start Shizuku via TCP
         } else {
             val intent = Intent(context, StarterActivity::class.java).apply {
@@ -70,6 +72,15 @@ object StartMethods {
             }
             context.startActivity(intent)
         }
+    }
+
+    private fun startWirelessDiscovery(context: Context) {
+        AdbSettings.setWirelessDebuggingEnabled(context, true)
+        context.startActivity(
+            Intent(context, StarterActivity::class.java).apply {
+                putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
+            }
+        )
     }
 
     @RequiresApi(Build.VERSION_CODES.R)

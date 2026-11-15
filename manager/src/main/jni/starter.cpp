@@ -112,6 +112,114 @@ v_current = (uintptr_t) v + v_size - sizeof(char *); \
     }
 }
 
+// Find the cgroup v2 mount point by scanning /proc/mounts. Returns true and fills
+// mount_point on success.
+static bool find_cgroup2_mount(char *mount_point, size_t len) {
+    FILE *f = fopen("/proc/mounts", "r");
+    if (!f) return false;
+
+    char line[512];
+    bool found = false;
+    while (fgets(line, sizeof(line), f)) {
+        char dev[128], mp[256], fstype[64];
+        if (sscanf(line, "%127s %255s %63s", dev, mp, fstype) == 3) {
+            if (strcmp(fstype, "cgroup2") == 0) {
+                strncpy(mount_point, mp, len - 1);
+                mount_point[len - 1] = '\0';
+                found = true;
+                break;
+            }
+        }
+    }
+    fclose(f);
+    return found;
+}
+
+// Move the server out of adbd's per-PID cgroup. On some devices the USB stack
+// restarts adbd when the screen turns off in a data-transfer USB mode, and
+// Android then kills adbd's cgroup - including this process if it is still in
+// that subtree. A sibling cgroup lets the server survive that restart.
+static int try_escape_v2_cgroup(int pid) {
+    char cg2_root[PATH_MAX] = "/sys/fs/cgroup";
+    find_cgroup2_mount(cg2_root, sizeof(cg2_root));
+    printf("info: cgroupv2 mount point: %s\n", cg2_root);
+    fflush(stdout);
+
+    FILE *f = fopen("/proc/self/cgroup", "r");
+    if (!f) {
+        printf("warn: can't open /proc/self/cgroup: %s\n", strerror(errno));
+        return -1;
+    }
+
+    char line[512];
+    char v2_path[PATH_MAX] = {0};
+    while (fgets(line, sizeof(line), f)) {
+        if (strncmp(line, "0::", 3) == 0) {
+            char *path_start = line + 3;
+            char *nl = strchr(path_start, '\n');
+            if (nl) *nl = '\0';
+            strncpy(v2_path, path_start, sizeof(v2_path) - 1);
+            break;
+        }
+    }
+    fclose(f);
+
+    if (v2_path[0] == '\0') {
+        printf("warn: no cgroupv2 entry in /proc/self/cgroup\n");
+        return -1;
+    }
+    printf("info: current cgroupv2 path: %s\n", v2_path);
+    fflush(stdout);
+
+    // Strip the pid_XXXXX leaf: /system/uid_2000/pid_12345 -> /system/uid_2000
+    char *last_slash = strrchr(v2_path, '/');
+    if (!last_slash || last_slash == v2_path) {
+        printf("warn: cgroupv2 path too shallow to escape: %s\n", v2_path);
+        return -1;
+    }
+    *last_slash = '\0';
+
+    char parent_path[PATH_MAX];
+    if (snprintf(parent_path, sizeof(parent_path), "%s%s", cg2_root, v2_path) >=
+        (int) sizeof(parent_path)) {
+        printf("warn: cgroupv2 parent path is too long\n");
+        return -1;
+    }
+    printf("info: attempting cgroupv2 escape to parent: %s\n", parent_path);
+    fflush(stdout);
+
+    // The parent is often a non-leaf (adbd itself lives there), and cgroup v2
+    // refuses to put a process in a non-leaf cgroup. Fall back to a dedicated
+    // child cgroup.
+    if (cgroup::switch_cgroup(parent_path, pid)) {
+        printf("info: cgroupv2 escape succeeded (parent): %s\n", parent_path);
+        fflush(stdout);
+        return 0;
+    }
+    printf("info: parent write failed, trying a shizuku leaf cgroup\n");
+    fflush(stdout);
+
+    char shizuku_path[PATH_MAX];
+    if (snprintf(shizuku_path, sizeof(shizuku_path), "%s/shizuku", parent_path) >=
+        (int) sizeof(shizuku_path)) {
+        printf("warn: cgroupv2 leaf path is too long\n");
+        return -1;
+    }
+    if (mkdir(shizuku_path, 0755) != 0 && errno != EEXIST) {
+        printf("warn: mkdir %s failed: %s\n", shizuku_path, strerror(errno));
+        // The directory may already exist from an earlier run; still try to
+        // move into it.
+    }
+    if (cgroup::switch_cgroup(shizuku_path, pid)) {
+        printf("info: cgroupv2 escape succeeded (shizuku leaf): %s\n", shizuku_path);
+        fflush(stdout);
+        return 0;
+    }
+    printf("warn: cgroupv2 escape failed for pid %d\n", pid);
+    fflush(stdout);
+    return -1;
+}
+
 static void start_server(const char *path, const char *main_class, const char *process_name) {
     int fds[2];
     if (pipe(fds) < 0) {
@@ -130,6 +238,13 @@ static void start_server(const char *path, const char *main_class, const char *p
             close(fds[0]);
             setsid();
             chdir("/");
+
+            // ADB starts are the ones launched inside adbd's cgroup. Root starts
+            // already go through switch_cgroup() above, so leave them alone.
+            if (getuid() == 2000) {
+                try_escape_v2_cgroup(getpid());
+            }
+
             int fd = open("/dev/null", O_RDWR);
             if (fd != -1) {
                 dup2(fd, STDIN_FILENO);
