@@ -12,7 +12,11 @@ class ManualStopReceiver : AuthenticatedReceiver() {
     override fun onAuthenticated(context: Context, intent: Intent) {
         val applicationId = BuildConfig.APPLICATION_ID
         if (intent.action != "${applicationId}.STOP") return
-        if (!ShizukuStateMachine.isRunning()) return
+
+        // A manifest receiver can start a cold process, where ShizukuStateMachine hasn't seen a
+        // binder yet even though the server is alive. Checking the binder directly avoids
+        // silently ignoring the stop intent in that case.
+        if (!Shizuku.pingBinder()) return
 
         ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
         runCatching { Shizuku.exit() }

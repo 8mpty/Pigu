@@ -28,6 +28,7 @@ public class ShizukuSettings {
         public static final String KEY_WATCHDOG = "watchdog";
         public static final String KEY_TCP_MODE = "tcp_mode";
         public static final String KEY_TCP_PORT = "tcp_port";
+        public static final String KEY_KEEP_WIRELESS_DEBUGGING = "keep_wireless_debugging";
         public static final String KEY_AUTO_DISABLE_USB_DEBUGGING = "auto_disable_usb_debugging";
         public static final String KEY_LANGUAGE = "language";
         public static final String KEY_LIGHT_THEME = "light_theme";
@@ -156,6 +157,14 @@ public class ShizukuSettings {
 
     public static void setTcpMode(boolean enable) {
         getPreferences().edit().putBoolean(Keys.KEY_TCP_MODE, enable).apply();
+    }
+
+    public static boolean getKeepWirelessDebugging() {
+        return getPreferences().getBoolean(Keys.KEY_KEEP_WIRELESS_DEBUGGING, false);
+    }
+
+    public static void setKeepWirelessDebugging(boolean enable) {
+        getPreferences().edit().putBoolean(Keys.KEY_KEEP_WIRELESS_DEBUGGING, enable).apply();
     }
 
     public static int getTcpPort() {

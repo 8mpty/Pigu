@@ -14,6 +14,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.topjohnwu.superuser.Shell
+import moe.shizuku.manager.MainActivity
 import moe.shizuku.manager.R
 import moe.shizuku.manager.AppConstants
 import moe.shizuku.manager.ShizukuSettings
@@ -28,6 +29,7 @@ import moe.shizuku.manager.worker.AdbStartWorker
 object ShizukuReceiverStarter {
 
     const val NOTIFICATION_ID = 1447
+    private const val NOTIFICATION_ID_UNSUPPORTED = 1449
     private const val CHANNEL_ID = "AdbStartWorker"
 
     enum class WorkerState {
@@ -40,18 +42,21 @@ object ShizukuReceiverStarter {
     fun start(context: Context, forceStart: Boolean = false) {
         if ((UserHandleCompat.myUserId() > 0 || ShizukuStateMachine.isRunning()) && !forceStart) return
 
-        if (ShizukuSettings.getLastLaunchMode() == LaunchMethod.ROOT) {
+        val mode = ShizukuSettings.getLastLaunchMode()
+
+        if (mode == LaunchMethod.ROOT) {
             rootStart(context)
-        } else if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)
-            && ShizukuSettings.getLastLaunchMode() == LaunchMethod.ADB) {
-                if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
-                    AdbStartWorker.enqueue(context)
-                    updateNotification(context, WorkerState.AWAITING_WIFI)
-                } else {
-                    showPermissionErrorNotification(context)
-                }
+        } else if ((mode == LaunchMethod.ADB || mode == LaunchMethod.WIRELESS_ADB) &&
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)) {
+            if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
+                AdbStartWorker.enqueue(context)
+                updateNotification(context, WorkerState.AWAITING_WIFI)
+            } else {
+                showPermissionErrorNotification(context)
+            }
         } else {
-            Log.w(AppConstants.TAG, "Background start not supported")
+            Log.w(AppConstants.TAG, "Background start not supported: $mode")
+            showUnsupportedNotification(context)
         }
     }
 
@@ -155,5 +160,40 @@ object ShizukuReceiverStarter {
             .build()
 
         nm.notify(NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * The start intent (and start-on-boot) can only run when Pigu knows how the service was
+     * started before. When that isn't the case, say so instead of failing silently - otherwise
+     * automation intents look like they do nothing at all.
+     */
+    private fun showUnsupportedNotification(context: Context) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.wadb_notification_title),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(channel)
+
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pendingLaunchIntent = PendingIntent.getActivity(
+            context, 0, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val msg = context.getString(R.string.wadb_unsupported_notification_content)
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_system_icon)
+            .setContentTitle(context.getString(R.string.wadb_unsupported_notification_title))
+            .setContentText(msg)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(msg))
+            .setAutoCancel(true)
+            .setContentIntent(pendingLaunchIntent)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_UNSUPPORTED, notification)
     }
 }

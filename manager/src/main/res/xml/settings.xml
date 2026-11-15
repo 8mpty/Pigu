@@ -36,6 +36,11 @@
             android:title="@string/settings_auto_disable_usb_debugging"
             android:summary="@string/settings_auto_disable_usb_debugging_summary" />
 
+        <SwitchPreferenceCompat
+            android:key="keep_wireless_debugging"
+            android:title="@string/settings_keep_wireless_debugging"
+            android:summary="@string/settings_keep_wireless_debugging_summary" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

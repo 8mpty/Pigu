@@ -21,6 +21,7 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root.
 - **Start / stop control** from the home screen, with a confirmation dialog when stopping.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.
+- **Option to keep wireless debugging on** after connecting, with a warning about the security trade-off.
 - **Watchdog** that restarts the service if it crashes.
 - **Start on boot**, waiting for Wi-Fi when needed.
 - **Automation intents** for Tasker, MacroDroid, Automate, etc.

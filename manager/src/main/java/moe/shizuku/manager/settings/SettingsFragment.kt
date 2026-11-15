@@ -64,6 +64,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     private lateinit var watchdogPreference: TwoStatePreference
     private lateinit var tcpModePreference: TwoStatePreference
     private lateinit var tcpPortPreference: EditTextPreference
+    private lateinit var keepWirelessDebuggingPreference: TwoStatePreference
     private lateinit var languagePreference: ListPreference
     private lateinit var nightModePreference: IntegerSimpleMenuPreference
     private lateinit var blackNightThemePreference: TwoStatePreference
@@ -93,6 +94,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
         tcpPortPreference = findPreference(KEY_TCP_PORT)!!
+        keepWirelessDebuggingPreference = findPreference(KEY_KEEP_WIRELESS_DEBUGGING)!!
         languagePreference = findPreference(KEY_LANGUAGE)!!
         nightModePreference = findPreference(KEY_NIGHT_MODE)!!
         blackNightThemePreference = findPreference(KEY_BLACK_NIGHT_THEME)!!
@@ -218,6 +220,32 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                     maybePromptRestart (KEY_TCP_PORT, port ?: 5555) { applyChange() }
                 } else {
                     SnackbarHelper.show(context, requireView(), context.getString(R.string.snackbar_invalid_port))
+                }
+                false
+            }
+        }
+
+        keepWirelessDebuggingPreference.apply {
+            isChecked = ShizukuSettings.getKeepWirelessDebugging()
+
+            setOnPreferenceChangeListener { _, newValue ->
+                if (newValue == true) {
+                    MaterialAlertDialogBuilder(context)
+                        .setTitle(R.string.settings_keep_wireless_debugging_dialog_title)
+                        .setMessage(R.string.settings_keep_wireless_debugging_dialog_message)
+                        .setCancelable(false)
+                        .setPositiveButton(R.string.settings_keep_wireless_debugging_enable) { _, _ ->
+                            ShizukuSettings.setKeepWirelessDebugging(true)
+                            isChecked = true
+                        }
+                        .setNegativeButton(android.R.string.cancel) { _, _ ->
+                            ShizukuSettings.setKeepWirelessDebugging(false)
+                            isChecked = false
+                        }
+                        .show()
+                } else {
+                    ShizukuSettings.setKeepWirelessDebugging(false)
+                    isChecked = false
                 }
                 false
             }

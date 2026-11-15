@@ -132,9 +132,19 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
         started = true
 
         viewModelScope.launch(handler) {
-            if (root) startRoot()
-            else AdbStarter.startAdb(appContext, port, { log(it) })
-            Starter.waitForBinder({ log(it) })
+            if (root) {
+                startRoot()
+                Starter.waitForBinder { log(it) }
+            } else {
+                try {
+                    AdbStarter.startAdb(appContext, port) { log(it) }
+                    Starter.waitForBinder { log(it) }
+                    AdbStarter.finishWirelessStart(appContext, success = true)
+                } catch (e: Throwable) {
+                    AdbStarter.finishWirelessStart(appContext, success = false)
+                    throw e
+                }
+            }
         }
     }
 

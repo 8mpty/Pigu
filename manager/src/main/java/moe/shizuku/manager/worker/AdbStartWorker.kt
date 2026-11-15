@@ -131,12 +131,14 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
             ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.WIRELESS_ADB)
             AdbStarter.startAdb(applicationContext, port)
             Starter.waitForBinder()
+            AdbStarter.finishWirelessStart(applicationContext, success = true)
 
             val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.cancel(ShizukuReceiverStarter.NOTIFICATION_ID)
 
             return Result.success()
         } catch (e: CancellationException) {
+            AdbStarter.finishWirelessStart(applicationContext, success = false)
             val state = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                 WorkerState.AWAITING_RETRY
             } else {
@@ -158,8 +160,10 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
             if (ignored.none { it.isInstance(e) }) showErrorNotification(applicationContext, e)
 
             if (ShizukuStateMachine.update() == ShizukuStateMachine.State.RUNNING) {
+                AdbStarter.finishWirelessStart(applicationContext, success = true)
                 return Result.success()
             } else {
+                AdbStarter.finishWirelessStart(applicationContext, success = false)
                 updateNotification(
                     applicationContext,
                     WorkerState.AWAITING_RETRY

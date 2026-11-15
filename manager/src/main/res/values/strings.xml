@@ -182,6 +182,11 @@
     <string name="settings_tcp_port_hint">Leave blank to use default (5555)</string>
     <string name="settings_auto_disable_usb_debugging">Auto-disable USB debugging</string>
     <string name="settings_auto_disable_usb_debugging_summary">Disable USB debugging when stopping Shizuku</string>
+    <string name="settings_keep_wireless_debugging">Keep wireless debugging on</string>
+    <string name="settings_keep_wireless_debugging_summary">Don\'t turn off wireless debugging after Pigu connects</string>
+    <string name="settings_keep_wireless_debugging_dialog_title">Keep wireless debugging on?</string>
+    <string name="settings_keep_wireless_debugging_dialog_message">Pigu will leave Android\'s wireless debugging switch enabled after it connects.\n\n• The ADB port stays open while wireless debugging is on.\n• Any device on the same network with your ADB key can try to connect.\n• Android keeps the wireless debugging notification visible.\n• This increases the attack surface and may use more battery.\n\nUse it only on networks you trust, and turn it off when you no longer need it. When this is off, Pigu turns wireless debugging off again after connecting.</string>
+    <string name="settings_keep_wireless_debugging_enable">Keep it on</string>
     <string name="settings_language">Language</string>
     <string name="settings_user_interface">Appearance</string>
     <string name="settings_black_night_theme">Black night theme</string>
@@ -288,6 +293,8 @@
     <string name="wadb_error_notify_dev">Tap to notify the developer.</string>
     <string name="wadb_permission_error_notification_title">Permission Error</string>
     <string name="wadb_permission_error_notification_content">Shizuku needs WRITE_SECURE_SETTINGS to start on boot. Tap to learn how to grant it.</string>
+    <string name="wadb_unsupported_notification_title">Can\'t start in the background</string>
+    <string name="wadb_unsupported_notification_content">Pigu can\'t start automatically with the method used last time. Open Pigu, start the service manually, then try the automation intent again.</string>
     <string name="wadb_notification_channel">ADB auto-start service</string>
 
     <!-- Watchdog -->
