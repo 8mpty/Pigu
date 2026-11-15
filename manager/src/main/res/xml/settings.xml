@@ -21,15 +21,16 @@
             android:summary="@string/settings_watchdog_summary"
             android:title="@string/settings_watchdog" />
 
-        <SwitchPreferenceCompat
-            android:key="tcp_mode"
-            android:title="@string/settings_tcp_mode" 
-            android:defaultValue="true" />
+    </PreferenceCategory>
 
-        <EditTextPreference
-            android:key="tcp_port"
-            android:title="@string/settings_tcp_port"
-            android:inputType="number" />
+    <PreferenceCategory
+        android:key="category_networking_adb"
+        android:title="@string/settings_networking_adb">
+
+        <Preference
+            android:key="tcp_mode"
+            android:persistent="false"
+            android:title="@string/settings_tcp_mode" />
 
         <SwitchPreferenceCompat
             android:key="auto_disable_usb_debugging"

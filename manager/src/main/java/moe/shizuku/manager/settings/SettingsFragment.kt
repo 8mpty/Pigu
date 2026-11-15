@@ -11,7 +11,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
-import android.text.InputType
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -20,12 +19,12 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.ActivityResultLauncher
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat.Type
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.*
-import androidx.preference.Preference.SummaryProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -42,6 +41,7 @@ import moe.shizuku.manager.ShizukuSettings.Keys.*
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.SnackbarHelper
 import moe.shizuku.manager.app.ThemeHelper
+import moe.shizuku.manager.databinding.DialogTcpModeBinding
 import moe.shizuku.manager.ktx.isComponentEnabled
 import moe.shizuku.manager.ktx.setComponentEnabled
 import moe.shizuku.manager.receiver.BootCompleteReceiver
@@ -62,8 +62,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     private lateinit var startOnBootPreference: TwoStatePreference
     private lateinit var watchdogPreference: TwoStatePreference
-    private lateinit var tcpModePreference: TwoStatePreference
-    private lateinit var tcpPortPreference: EditTextPreference
+    private lateinit var tcpModePreference: Preference
     private lateinit var keepWirelessDebuggingPreference: TwoStatePreference
     private lateinit var languagePreference: ListPreference
     private lateinit var nightModePreference: IntegerSimpleMenuPreference
@@ -77,8 +76,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     private val stateListener: (ShizukuStateMachine.State) -> Unit = {
         if (ShizukuStateMachine.isRunning()) {
-            tcpModePreference.icon = maybeGetRestartIcon(KEY_TCP_MODE)
-            tcpPortPreference.icon = maybeGetRestartIcon(KEY_TCP_PORT)
+            tcpModePreference.icon = tcpRestartIcon()
         }
     }
 
@@ -93,7 +91,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         startOnBootPreference = findPreference(KEY_START_ON_BOOT)!!
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
-        tcpPortPreference = findPreference(KEY_TCP_PORT)!!
         keepWirelessDebuggingPreference = findPreference(KEY_KEEP_WIRELESS_DEBUGGING)!!
         languagePreference = findPreference(KEY_LANGUAGE)!!
         nightModePreference = findPreference(KEY_NIGHT_MODE)!!
@@ -166,62 +163,15 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         }
 
         tcpModePreference.apply {
-            if (EnvironmentUtils.isTlsSupported()) {
-                summary = context.getString(R.string.settings_tcp_mode_summary)
-                icon = maybeGetRestartIcon(KEY_TCP_MODE)
-                setOnPreferenceChangeListener { _, newValue ->
-                    if (newValue is Boolean) {
-                        val applyChange: () -> Unit = {
-                            ShizukuSettings.setTcpMode(newValue)
-                            isChecked = newValue
-                            isEnabled = true
-                            summary = context.getString(R.string.settings_tcp_mode_summary)
-                            icon = maybeGetRestartIcon(KEY_TCP_MODE)
-                            tcpPortPreference.isVisible = newValue
-                        }
-                        
-                        if (!newValue && !ShizukuStateMachine.isRunning() && needsRestart(KEY_TCP_MODE, newValue)) {
-                            promptStopTcp { applyChange() }
-                        } else maybePromptRestart (KEY_TCP_MODE, newValue) { applyChange() }
-                    }
-                    false
+            if (EnvironmentUtils.isTlsSupported() || EnvironmentUtils.isTelevision()) {
+                updateTcpModeSummary()
+                icon = tcpRestartIcon()
+                setOnPreferenceClickListener {
+                    showTcpModeDialog(lockMode = !EnvironmentUtils.isTlsSupported())
+                    true
                 }
-            } else if (EnvironmentUtils.isTelevision()) {
-                isEnabled = false
-                isChecked = true
             } else {
                 isVisible = false
-            }
-        }
-
-        tcpPortPreference.apply {
-            isVisible = tcpModePreference.isVisible && tcpModePreference.isChecked
-            icon = maybeGetRestartIcon(KEY_TCP_PORT)
-
-            setOnBindEditTextListener { editText ->
-                editText.hint = context.getString(R.string.settings_tcp_port_hint)
-                editText.inputType = InputType.TYPE_CLASS_NUMBER
-                editText.setSelection(editText.text.length)
-            }
-
-            summaryProvider = SummaryProvider<EditTextPreference> { pref ->
-                val text = pref.text
-                if (text.isNullOrEmpty()) context.getString(R.string.settings_tcp_port_default) else text
-            }
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val port = (newValue as? String)?.toIntOrNull()
-                if (port == null || port in 1..65535) {
-                    val applyChange: () -> Unit = {
-                        ShizukuSettings.setTcpPort(port)
-                        text = port?.toString()
-                        icon = maybeGetRestartIcon(KEY_TCP_PORT)
-                    }
-                    maybePromptRestart (KEY_TCP_PORT, port ?: 5555) { applyChange() }
-                } else {
-                    SnackbarHelper.show(context, requireView(), context.getString(R.string.snackbar_invalid_port))
-                }
-                false
             }
         }
 
@@ -325,6 +275,9 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         when (key) {
             KEY_WATCHDOG -> watchdogPreference.isChecked = ShizukuSettings.isWatchdogRunning()
+            KEY_TCP_MODE, KEY_TCP_PORT -> if (::tcpModePreference.isInitialized) {
+                updateTcpModeSummary()
+            }
         }
     }
 
@@ -370,6 +323,121 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         }
     }
 
+    private fun updateTcpModeSummary() {
+        val context = requireContext()
+        val enabled = ShizukuSettings.getTcpMode()
+        val port = ShizukuSettings.getTcpPort()
+        tcpModePreference.summary = context.getString(
+            if (enabled) R.string.settings_tcp_mode_summary_on else R.string.settings_tcp_mode_summary_off,
+            port
+        )
+        tcpModePreference.icon = tcpRestartIcon()
+    }
+
+    private fun tcpRestartIcon(): Drawable? =
+        maybeGetRestartIcon(KEY_TCP_MODE) ?: maybeGetRestartIcon(KEY_TCP_PORT)
+
+    private fun showTcpModeDialog(lockMode: Boolean) {
+        val context = requireContext()
+        val binding = DialogTcpModeBinding.inflate(layoutInflater)
+
+        binding.tcpEnabled.isChecked = lockMode || ShizukuSettings.getTcpMode()
+        binding.tcpEnabled.isEnabled = !lockMode
+        binding.port.setText(ShizukuSettings.getTcpPort().toString())
+        binding.portLayout.isEnabled = binding.tcpEnabled.isChecked
+
+        binding.tcpEnabled.setOnCheckedChangeListener { _, checked ->
+            binding.portLayout.isEnabled = checked
+        }
+        binding.portLayout.setEndIconOnClickListener {
+            if (!binding.portLayout.isEnabled) return@setEndIconOnClickListener
+            binding.port.setText(TCP_RANDOM_PORT_RANGE.random().toString())
+            binding.portLayout.error = null
+        }
+
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.settings_tcp_mode)
+            .setView(binding.root)
+            .setPositiveButton(android.R.string.ok, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val enabled = lockMode || binding.tcpEnabled.isChecked
+                val portText = binding.port.text?.toString()?.trim().orEmpty()
+                val port = if (portText.isEmpty()) TCP_PORT_DEFAULT else portText.toIntOrNull()
+                if (port == null || port !in TCP_PORT_RANGE) {
+                    binding.portLayout.error = context.getString(R.string.snackbar_invalid_port)
+                    return@setOnClickListener
+                }
+                binding.portLayout.error = null
+                dialog.dismiss()
+                applyTcpSettings(enabled, port)
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun applyTcpSettings(enabled: Boolean, port: Int) {
+        val oldEnabled = ShizukuSettings.getTcpMode()
+        val oldPort = ShizukuSettings.getTcpPort()
+
+        if (oldEnabled == enabled && oldPort == port) {
+            updateTcpModeSummary()
+            return
+        }
+
+        val applyChange: () -> Unit = {
+            ShizukuSettings.setTcpMode(enabled)
+            ShizukuSettings.setTcpPort(port)
+            tcpModePreference.isEnabled = true
+            updateTcpModeSummary()
+        }
+
+        if (!enabled && oldEnabled) {
+            if (!ShizukuStateMachine.isRunning() && needsRestart(KEY_TCP_MODE, false)) {
+                promptStopTcp { applyChange() }
+            } else {
+                maybePromptRestart(KEY_TCP_MODE, false) { applyChange() }
+            }
+            return
+        }
+
+        maybePromptTcpRestart(enabled, port, applyChange)
+    }
+
+    private fun maybePromptTcpRestart(enabled: Boolean, port: Int, applyChange: () -> Unit) {
+        val context = requireContext()
+        val modeChanged = enabled != ShizukuSettings.getTcpMode()
+        val restartNeeded =
+            needsRestart(KEY_TCP_MODE, enabled) || needsRestart(KEY_TCP_PORT, port)
+
+        if (!ShizukuStateMachine.isRunning() || !restartNeeded) {
+            applyChange()
+            context.sendBroadcast(Intent(context, NotifCancelReceiver::class.java))
+            return
+        }
+
+        val message = buildString {
+            append(context.getString(R.string.settings_restart_dialog_message))
+            if (modeChanged) {
+                append(context.getString(R.string.settings_restart_dialog_message_wifi_required))
+            }
+        }
+
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.settings_restart_dialog_title)
+            .setMessage(HtmlCompat.fromHtml(message))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                applyChange()
+                ShizukuReceiverStarter.start(context, true)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun maybeGetRestartIcon(setting: String): Drawable? {
         val context = requireContext()
         if (!needsRestart(setting)) return null
@@ -398,7 +466,12 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                         summary = context.getString(R.string.settings_tcp_mode_closing_port)
                     }
                     AdbStarter.stopTcp(context, EnvironmentUtils.getAdbTcpPort())
-                    if (EnvironmentUtils.getAdbTcpPort() <= 0) applyChange()
+                    tcpModePreference.isEnabled = true
+                    if (EnvironmentUtils.getAdbTcpPort() <= 0) {
+                        applyChange()
+                    } else {
+                        updateTcpModeSummary()
+                    }
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -477,5 +550,15 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         languagePreference.summary =
             if (languagePreference.value == "en") getString(R.string.language_english)
             else getString(R.string.follow_system)
+    }
+
+    private companion object {
+        /** Valid range for a user-supplied TCP port. */
+        val TCP_PORT_RANGE = 1..65535
+
+        /** Range used by the randomize action; IANA's dynamic/private port range. */
+        val TCP_RANDOM_PORT_RANGE = 49152..65535
+
+        const val TCP_PORT_DEFAULT = 5555
     }
 }
