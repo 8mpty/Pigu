@@ -42,6 +42,12 @@
             android:title="@string/settings_keep_wireless_debugging"
             android:summary="@string/settings_keep_wireless_debugging_summary" />
 
+        <Preference
+            android:key="developer_options"
+            android:persistent="false"
+            android:title="@string/settings_developer_options"
+            android:summary="@string/settings_developer_options_summary" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

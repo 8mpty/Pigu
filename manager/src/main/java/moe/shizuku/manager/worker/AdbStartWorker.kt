@@ -31,6 +31,7 @@ import kotlinx.coroutines.withTimeout
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.AdbMdns
+import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter.WorkerState
@@ -50,8 +51,13 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
             val cr = applicationContext.contentResolver
 
-            Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
-            Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
+            val settingsRestricted = AdbSettings.isDebuggingSettingsRestricted(applicationContext)
+            AdbSettings.enableDebugging(applicationContext)
+            if (settingsRestricted &&
+                Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0) == 0
+            ) {
+                ShizukuReceiverStarter.showDebuggingSettingsRestrictedNotification(applicationContext)
+            }
 
             val tcpPort = EnvironmentUtils.getAdbTcpPort()
             if (tcpPort > 0 && !ShizukuSettings.getTcpMode()) {
@@ -95,7 +101,12 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                                 if (intent.action == Intent.ACTION_USER_PRESENT) {
                                     context.unregisterReceiver(this)
                                     unlockReceiver = null
-                                    Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+                                    if (!AdbSettings.setWirelessDebuggingEnabled(applicationContext, true)) {
+                                        if (settingsRestricted) {
+                                            ShizukuReceiverStarter.showDebuggingSettingsRestrictedNotification(applicationContext)
+                                        }
+                                        startDiscoveryWithTimeout()
+                                    }
                                 }
                             }
                         }
@@ -116,7 +127,13 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     }
                 }
 
-                Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+                val wirelessAlreadyEnabled =
+                    Settings.Global.getInt(cr, "adb_wifi_enabled", 0) != 0
+                if (!AdbSettings.setWirelessDebuggingEnabled(applicationContext, true) &&
+                    settingsRestricted && !wirelessAlreadyEnabled
+                ) {
+                    ShizukuReceiverStarter.showDebuggingSettingsRestrictedNotification(applicationContext)
+                }
                 cr.registerContentObserver(Settings.Global.getUriFor("adb_wifi_enabled"), false, observer)
                 startDiscoveryWithTimeout()
 

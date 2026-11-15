@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.activity.result.ActivityResultLauncher
 import android.os.PowerManager
 import android.provider.Settings
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import moe.shizuku.manager.R
 import moe.shizuku.manager.utils.SettingsPage
 
 object SettingsHelper {
@@ -31,6 +33,17 @@ object SettingsHelper {
         } else {
             context.startActivity(intent)
         }
+    }
+
+    fun showDebuggingSettingsRestrictedDialog(context: Context) {
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.settings_developer_options)
+            .setMessage(R.string.settings_developer_options_dialog_message)
+            .setPositiveButton(R.string.settings_developer_options_open) { _, _ ->
+                SettingsPage.Developer.DeveloperOptions.launch(context)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
 }

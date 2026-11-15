@@ -1,9 +1,7 @@
 package moe.shizuku.manager.home
 
-import android.Manifest.permission.WRITE_SECURE_SETTINGS
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
@@ -15,11 +13,13 @@ import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.AdbPairingTutorialActivity
+import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.starter.StarterActivity
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.core.content.asActivity
 import rikka.core.util.ClipboardUtils
@@ -36,14 +36,15 @@ object StartMethods {
         context.sendBroadcast(Intent(context, NotifCancelReceiver::class.java))
 
         val cr = context.contentResolver
-        if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
-            Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
-            Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
-        }
+        AdbSettings.enableDebugging(context)
 
         val adbEnabled = Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0)
         if (adbEnabled == 0) {
-            WadbEnableUsbDebuggingDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
+            if (AdbSettings.isDebuggingSettingsRestricted(context)) {
+                SettingsHelper.showDebuggingSettingsRestrictedDialog(context)
+            } else {
+                WadbEnableUsbDebuggingDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
+            }
             return
         }
 

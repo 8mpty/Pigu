@@ -33,6 +33,7 @@ object ShizukuReceiverStarter {
 
     const val NOTIFICATION_ID = 1447
     private const val NOTIFICATION_ID_UNSUPPORTED = 1449
+    private const val NOTIFICATION_ID_DEBUGGING_RESTRICTED = 1451
     private const val CHANNEL_ID = "AdbStartWorker"
 
     enum class WorkerState {
@@ -155,6 +156,39 @@ object ShizukuReceiverStarter {
         val msg = if (msgId != null) context.getString(msgId) else null
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID, buildNotification(context, msg))
+    }
+
+    fun showDebuggingSettingsRestrictedNotification(context: Context) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.wadb_notification_title),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(channel)
+
+        val developerOptionsIntent = SettingsPage.Developer.DeveloperOptions.buildIntent(context)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            developerOptionsIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_system_icon)
+            .setContentTitle(context.getString(R.string.wadb_debugging_settings_restricted_title))
+            .setContentText(context.getString(R.string.wadb_debugging_settings_restricted_content))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(context.getString(R.string.wadb_debugging_settings_restricted_content))
+            )
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_DEBUGGING_RESTRICTED, notification)
     }
 
     private fun rootStart(context: Context) {

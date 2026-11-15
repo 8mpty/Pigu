@@ -68,6 +68,19 @@ The companion is a package identity stub, not a full permission replacement:
 - Apps that verify the official Shizuku signing certificate will not accept Pigu or the companion.
 - Apps that only check `getPackageInfo("moe.shizuku.privileged.api")` or use `Shizuku.pingBinder()` work with the companion.
 
+### Android 17 debugging settings
+
+Android 17 QPR3 and later can require `MANAGE_DEBUGGING` for USB and wireless debugging settings. That is a `signature|privileged` permission, so Pigu cannot hold it even with `WRITE_SECURE_SETTINGS`.
+
+On those builds, Pigu treats these writes as best-effort:
+
+- **Auto-disable USB debugging** and **Keep wireless debugging on** may not take effect automatically.
+- Pigu can still start and use the service when the required debugging mode is already enabled.
+- Settings shows a **Developer options** shortcut so the user can enable or disable USB/wireless debugging manually.
+- Background-start failures show a notification with the same shortcut.
+
+Older Android versions keep the previous automatic behavior.
+
 ## Privacy
 
 - No tracking, analytics, or telemetry.

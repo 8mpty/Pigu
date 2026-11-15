@@ -38,6 +38,7 @@ import kotlinx.coroutines.CancellableContinuation
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.ShizukuSettings.Keys.*
+import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.SnackbarHelper
 import moe.shizuku.manager.app.ThemeHelper
@@ -49,6 +50,7 @@ import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
 import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.SettingsHelper
+import moe.shizuku.manager.utils.SettingsPage
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.core.util.ResourceUtils
 import rikka.html.text.HtmlCompat
@@ -63,7 +65,9 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     private lateinit var startOnBootPreference: TwoStatePreference
     private lateinit var watchdogPreference: TwoStatePreference
     private lateinit var tcpModePreference: Preference
+    private lateinit var autoDisableUsbDebuggingPreference: TwoStatePreference
     private lateinit var keepWirelessDebuggingPreference: TwoStatePreference
+    private lateinit var developerOptionsPreference: Preference
     private lateinit var languagePreference: ListPreference
     private lateinit var nightModePreference: IntegerSimpleMenuPreference
     private lateinit var blackNightThemePreference: TwoStatePreference
@@ -91,13 +95,17 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         startOnBootPreference = findPreference(KEY_START_ON_BOOT)!!
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
+        autoDisableUsbDebuggingPreference = findPreference(KEY_AUTO_DISABLE_USB_DEBUGGING)!!
         keepWirelessDebuggingPreference = findPreference(KEY_KEEP_WIRELESS_DEBUGGING)!!
+        developerOptionsPreference = findPreference(KEY_DEVELOPER_OPTIONS)!!
         languagePreference = findPreference(KEY_LANGUAGE)!!
         nightModePreference = findPreference(KEY_NIGHT_MODE)!!
         blackNightThemePreference = findPreference(KEY_BLACK_NIGHT_THEME)!!
         useSystemColorPreference = findPreference(KEY_USE_SYSTEM_COLOR)!!
         legacyPairingPreference = findPreference(KEY_LEGACY_PAIRING)!!
         advancedCategory = findPreference(KEY_CATEGORY_ADVANCED)!!
+
+        val debuggingSettingsRestricted = AdbSettings.isDebuggingSettingsRestricted(context)
 
         batteryOptimizationListener = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             val accepted = SettingsHelper.isIgnoringBatteryOptimizations(requireContext())
@@ -175,8 +183,17 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             }
         }
 
+        autoDisableUsbDebuggingPreference.apply {
+            if (debuggingSettingsRestricted) {
+                summary = context.getString(R.string.settings_auto_disable_usb_debugging_summary_restricted)
+            }
+        }
+
         keepWirelessDebuggingPreference.apply {
             isChecked = ShizukuSettings.getKeepWirelessDebugging()
+            if (debuggingSettingsRestricted) {
+                summary = context.getString(R.string.settings_keep_wireless_debugging_summary_restricted)
+            }
 
             setOnPreferenceChangeListener { _, newValue ->
                 if (newValue == true) {
@@ -198,6 +215,14 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                     isChecked = false
                 }
                 false
+            }
+        }
+
+        developerOptionsPreference.apply {
+            isVisible = AdbSettings.shouldShowDeveloperOptionsShortcut(context)
+            setOnPreferenceClickListener {
+                SettingsPage.Developer.DeveloperOptions.launch(context)
+                true
             }
         }
 

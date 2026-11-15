@@ -37,6 +37,7 @@ public class ShizukuSettings {
         public static final String KEY_USE_SYSTEM_COLOR = "use_system_color";
         public static final String KEY_LEGACY_PAIRING = "legacy_pairing";
         public static final String KEY_CATEGORY_ADVANCED = "category_advanced";
+        public static final String KEY_DEVELOPER_OPTIONS = "developer_options";
     }
 
     private static SharedPreferences sPreferences;
