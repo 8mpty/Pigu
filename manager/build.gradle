@@ -42,6 +42,13 @@ android {
             proguardFiles = ["proguard-rules.pro"]
         }
     }
+    sourceSets {
+        // The companion APK is generated per variant so debug and release builds never share
+        // (or race on) the same asset file.
+        def companionAssets = new File(layout.buildDirectory.get().asFile, "generated/companion_assets")
+        debug.assets.srcDir(new File(companionAssets, "debug"))
+        release.assets.srcDir(new File(companionAssets, "release"))
+    }
     externalNativeBuild {
         cmake {
             path = file("src/main/jni/CMakeLists.txt")
@@ -119,6 +126,32 @@ afterEvaluate {
     tasks.getByName("optimizeReleaseResources").finalizedBy(collapseReleaseResourceNames)
     tasks.getByName("preReleaseBuild").dependsOn(":shell:assembleRelease")
     tasks.getByName("preDebugBuild").dependsOn(":shell:assembleDebug")
+
+    tasks.register("copyCompanionApkRelease", Copy) {
+        dependsOn ":companion:assembleRelease"
+        from fileTree("${project(':companion').layout.buildDirectory.get().asFile}/outputs/apk/release") {
+            include "*.apk"
+        }
+        into "${layout.buildDirectory.get().asFile}/generated/companion_assets/release"
+        rename { "companion.apk" }
+    }
+
+    tasks.register("copyCompanionApkDebug", Copy) {
+        dependsOn ":companion:assembleDebug"
+        from fileTree("${project(':companion').layout.buildDirectory.get().asFile}/outputs/apk/debug") {
+            include "*.apk"
+        }
+        into "${layout.buildDirectory.get().asFile}/generated/companion_assets/debug"
+        rename { "companion.apk" }
+    }
+
+    tasks.getByName("preReleaseBuild").dependsOn("copyCompanionApkRelease")
+    tasks.getByName("preDebugBuild").dependsOn("copyCompanionApkDebug")
+
+    // Make the asset merge steps explicitly wait for the matching variant's copy. Otherwise
+    // Gradle can merge assets before the companion APK has been generated.
+    tasks.named("mergeReleaseAssets").configure { dependsOn("copyCompanionApkRelease") }
+    tasks.named("mergeDebugAssets").configure { dependsOn("copyCompanionApkDebug") }
 }
 
 android.applicationVariants.configureEach { variant ->

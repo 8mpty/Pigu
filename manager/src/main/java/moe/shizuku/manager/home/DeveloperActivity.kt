@@ -66,6 +66,11 @@ class DeveloperActivity : AppBarActivity() {
         )
     }
 
+    /** Called by the companion card after an in-app install so the card reflects the new state. */
+    fun refreshCompanion() {
+        updateData()
+    }
+
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true

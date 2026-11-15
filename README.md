@@ -42,7 +42,14 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 
 Pigu keeps its own package name, `com.empty.pigu`. Some apps only check for the official Shizuku package, `moe.shizuku.privileged.api`, and refuse to run when it is missing.
 
-The optional **Pigu Companion** is a separate, non-launchable app that uses that old package name. It does not run a service, does not request permissions, and has no UI. Its only job is to make those hard-coded package checks succeed; Pigu still starts the service and handles permission prompts.
+The optional **Pigu Companion** is a small, non-launchable app that uses that old package name. It does not run a service, does not request permissions, and has no UI. Its only job is to make those hard-coded package checks succeed; Pigu still starts the service and handles permission prompts.
+
+The companion APK is bundled inside Pigu and can be installed from the Developer page. There are two install paths:
+
+- **Install** — installs the bundled APK through the running Pigu service (or root). Nothing is downloaded.
+- **System installer** — writes the bundled APK to Pigu's cache and opens Android's package installer, so the install is confirmed by the system.
+
+The standalone `pigu-companion-*.apk` is also still published in Releases for people who prefer to sideload it themselves.
 
 | Situation | Result |
 | --- | --- |
@@ -77,6 +84,7 @@ The companion is a package identity stub, not a full permission replacement:
 - **ACCESS_LOCAL_NETWORK / USE_LOOPBACK_INTERFACE:** Android 16/17 local-network access for mDNS and loopback.
 - **NEARBY_WIFI_DEVICES / CHANGE_WIFI_MULTICAST_STATE:** mDNS discovery for wireless ADB and pairing.
 - **POST_NOTIFICATIONS:** pairing and service status notifications.
+- **REQUEST_INSTALL_PACKAGES:** installing the optional companion through Android's system installer.
 - **RECEIVE_BOOT_COMPLETED:** start on boot.
 - **FOREGROUND_SERVICE / FOREGROUND_SERVICE_SPECIAL_USE:** keeps the watchdog and starter services alive.
 - **REQUEST_IGNORE_BATTERY_OPTIMIZATIONS:** prevents start-on-boot and watchdog from being killed.
