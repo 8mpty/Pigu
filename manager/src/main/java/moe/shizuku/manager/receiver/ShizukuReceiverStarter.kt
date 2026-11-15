@@ -25,8 +25,11 @@ import moe.shizuku.manager.utils.SettingsPage
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import moe.shizuku.manager.utils.UserHandleCompat
 import moe.shizuku.manager.worker.AdbStartWorker
+import rikka.shizuku.Shizuku
 
 object ShizukuReceiverStarter {
+
+    private const val TAG = "ShizukuReceiverStarter"
 
     const val NOTIFICATION_ID = 1447
     private const val NOTIFICATION_ID_UNSUPPORTED = 1449
@@ -40,9 +43,25 @@ object ShizukuReceiverStarter {
     }
 
     fun start(context: Context, forceStart: Boolean = false) {
-        if ((UserHandleCompat.myUserId() > 0 || ShizukuStateMachine.isRunning()) && !forceStart) return
+        val storedMode = ShizukuSettings.getLastLaunchMode()
+        val mode = resolveLaunchMethod(context, storedMode)
+        val binderAlive = Shizuku.pingBinder()
 
-        val mode = ShizukuSettings.getLastLaunchMode()
+        // Do not trust the cached state machine here. It is driven by binder-death callbacks,
+        // which can be delayed while the app process is cached/dozing. A stale RUNNING state
+        // makes an automation START intent silently do nothing after the server has died.
+        Log.i(
+            TAG,
+            "start requested: forceStart=$forceStart binderAlive=$binderAlive " +
+                "state=${ShizukuStateMachine.get()} storedMode=$storedMode mode=$mode " +
+                "user=${UserHandleCompat.myUserId()} tcpPort=${EnvironmentUtils.getAdbTcpPort()} " +
+                "tcpMode=${ShizukuSettings.getTcpMode()}"
+        )
+
+        if (!forceStart && (UserHandleCompat.myUserId() > 0 || binderAlive)) {
+            Log.i(TAG, "start ignored: user not supported or service already running")
+            return
+        }
 
         if (mode == LaunchMethod.ROOT) {
             rootStart(context)
@@ -55,9 +74,30 @@ object ShizukuReceiverStarter {
                 showPermissionErrorNotification(context)
             }
         } else {
-            Log.w(AppConstants.TAG, "Background start not supported: $mode")
+            Log.w(TAG, "Background start not supported: $mode")
             showUnsupportedNotification(context)
         }
+    }
+
+    /**
+     * A start intent can arrive before Pigu has ever recorded a launch method (for example after
+     * a fresh install, cleared data, or a start performed outside the app). In that case, infer
+     * the method from the current device state instead of silently refusing to start.
+     */
+    private fun resolveLaunchMethod(context: Context, storedMode: Int): Int {
+        if (storedMode != LaunchMethod.UNKNOWN) return storedMode
+
+        if (EnvironmentUtils.getAdbTcpPort() > 0) {
+            Log.i(TAG, "no stored launch method; using ADB because a TCP port is available")
+            return LaunchMethod.ADB
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision()) {
+            Log.i(TAG, "no stored launch method; using wireless ADB")
+            return LaunchMethod.WIRELESS_ADB
+        }
+
+        return storedMode
     }
 
     fun buildNotification(context: Context, msg: String? = null): Notification {
@@ -119,8 +159,10 @@ object ShizukuReceiverStarter {
 
     private fun rootStart(context: Context) {
         if (!Shell.getShell().isRoot) {
+            Log.w(TAG, "root start requested, but no root shell is available")
             //NotificationHelper.notify(context, AppConstants.NOTIFICATION_ID_STATUS, AppConstants.NOTIFICATION_CHANNEL_STATUS, R.string.notification_service_start_no_root)
             Shell.getCachedShell()?.close()
+            showUnsupportedNotification(context)
             return
         }
 

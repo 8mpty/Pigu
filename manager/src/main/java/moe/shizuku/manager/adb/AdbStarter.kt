@@ -30,39 +30,45 @@ object AdbStarter {
         ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
         log?.invoke("Starting with wireless adb...\n")
         
-        withContext(Dispatchers.IO) {
-            val key = runCatching { AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku") }
-                .getOrElse {
-                    if (it is CancellationException) throw it
-                    else throw AdbKeyException(it)
+        try {
+            withContext(Dispatchers.IO) {
+                val key = runCatching { AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku") }
+                    .getOrElse {
+                        if (it is CancellationException) throw it
+                        else throw AdbKeyException(it)
+                    }
+
+                var activePort = port
+                val tcpMode = ShizukuSettings.getTcpMode()
+                val tcpPort = ShizukuSettings.getTcpPort()
+                if (tcpMode && activePort != tcpPort) {
+                    log?.invoke("Connecting on port $activePort...")
+
+                    AdbClient("127.0.0.1", activePort, key).use { client ->
+                        client.connect()
+
+                        log?.invoke("Successfully connected on port $activePort...")
+                        log?.invoke("\nRestarting in TCP mode port: $tcpPort")
+
+                        activePort = tcpPort
+                        runCatching {
+                            client.command("tcpip:$activePort")
+                        }.onFailure { if (it !is EOFException && it !is SocketException) throw it } // Expected when ADB restarts in TCP mode
+                    }
                 }
 
-            var activePort = port
-            val tcpMode = ShizukuSettings.getTcpMode()
-            val tcpPort = ShizukuSettings.getTcpPort()
-            if (tcpMode && activePort != tcpPort) {
                 log?.invoke("Connecting on port $activePort...")
 
                 AdbClient("127.0.0.1", activePort, key).use { client ->
-                    client.connect()
-
-                    log?.invoke("Successfully connected on port $activePort...")
-                    log?.invoke("\nRestarting in TCP mode port: $tcpPort")
-
-                    activePort = tcpPort
-                    runCatching {
-                        client.command("tcpip:$activePort")
-                    }.onFailure { if (it !is EOFException && it !is SocketException) throw it } // Expected when ADB restarts in TCP mode
+                    connectWithRetry(client)
+                    log?.invoke("Successfully connected on port $activePort...\n")
+                    client.runCommand("shell:${Starter.internalCommand}")
                 }
             }
-
-            log?.invoke("Connecting on port $activePort...")
-
-            AdbClient("127.0.0.1", activePort, key).use { client ->
-                connectWithRetry(client)
-                log?.invoke("Successfully connected on port $activePort...\n")
-                client.runCommand("shell:${Starter.internalCommand}")
-            }
+        } catch (e: Throwable) {
+            // A failed start must not leave the UI stuck in STARTING forever.
+            ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPED)
+            throw e
         }
     }
 
