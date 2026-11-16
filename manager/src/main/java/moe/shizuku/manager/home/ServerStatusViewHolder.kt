@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import moe.shizuku.manager.R
+import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.databinding.HomeItemContainerBinding
 import moe.shizuku.manager.databinding.HomeServerStatusBinding
 import moe.shizuku.manager.model.ServiceStatus
@@ -39,6 +40,9 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
                 .setTitle(R.string.dialog_stop_title)
                 .setMessage(R.string.dialog_stop_message_reactivate)
                 .setPositiveButton(R.string.stop_service) { _, _ ->
+                    // Suppress watchdog recovery before asking the server to exit, or the
+                    // binder death from this deliberate stop is indistinguishable from a crash.
+                    ShizukuSettings.setManuallyStopped(true)
                     ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
                     runCatching { Shizuku.exit() }
                 }

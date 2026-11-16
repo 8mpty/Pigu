@@ -32,9 +32,17 @@ object ShizukuStateMachine {
     fun get(): State = state.get()
 
     private fun transition(transform: (State) -> State) {
-        val oldState = state.getAndUpdate(transform)
-        val newState = transform(oldState)
+        var newState = State.STOPPED
+        val oldState = state.getAndUpdate { old ->
+            transform(old).also { newState = it }
+        }
         if(oldState != newState) {
+            if (newState == State.RUNNING) {
+                // Record that this boot has had a server worth keeping alive. The deliberate
+                // stop flag is cleared only by an explicit start request, not by a RUNNING
+                // observation: during a stop the old binder can report one last time.
+                ShizukuSettings.markServerStartedThisBoot(appContext)
+            }
             listeners.forEach { it(newState) }
             Log.d("ShizukuStateMachine", newState.toString())
         }

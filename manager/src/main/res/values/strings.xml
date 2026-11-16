@@ -330,8 +330,10 @@
     <string name="watchdog_running">Watchdog is running</string>
     <string name="watchdog_turn_off">Turn Off</string>
     <string name="watchdog_shizuku_crashed_title">Shizuku crashed recently</string>
-    <string name="watchdog_shizuku_crashed_text">Watchdog restarted the service. Tap to learn about potential fixes to prevent future crashes.</string>
+    <string name="watchdog_shizuku_crashed_text">Watchdog is restarting the service. Tap to learn about potential fixes to prevent future crashes.</string>
     <string name="watchdog_shizuku_crashed_action_turn_off_alerts">Turn Off Alerts</string>
+    <string name="watchdog_gave_up_title">Watchdog paused</string>
+    <string name="watchdog_gave_up_text">Pigu could not restart the service after several attempts. Start it manually, or turn the watchdog off and on to try again.</string>
 
     <!-- Misc -->
     <string name="success">Success</string>

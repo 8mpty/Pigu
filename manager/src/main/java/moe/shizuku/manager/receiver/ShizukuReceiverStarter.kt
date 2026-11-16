@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -35,6 +36,22 @@ object ShizukuReceiverStarter {
     private const val NOTIFICATION_ID_UNSUPPORTED = 1449
     private const val NOTIFICATION_ID_DEBUGGING_RESTRICTED = 1451
     private const val CHANNEL_ID = "AdbStartWorker"
+    private const val MAX_START_IN_FLIGHT_MS = 3 * 60_000L
+
+    private val startGate = StartRequestGate(MAX_START_IN_FLIGHT_MS)
+
+    init {
+        // A terminal state means the request the gate is holding has finished, one way or
+        // another. Without this, a failed start would block retries until the timeout.
+        ShizukuStateMachine.addListener { state ->
+            if (state == ShizukuStateMachine.State.RUNNING ||
+                state == ShizukuStateMachine.State.STOPPED ||
+                state == ShizukuStateMachine.State.CRASHED
+            ) {
+                startGate.release()
+            }
+        }
+    }
 
     enum class WorkerState {
         AWAITING_WIFI,
@@ -43,10 +60,29 @@ object ShizukuReceiverStarter {
         STOPPED
     }
 
+    /**
+     * Whether an automation/boot start is already being handled. The watchdog uses this before
+     * its own probe so it does not race an enqueued worker whose start has not set STARTING yet.
+     */
+    fun isStartInFlight(): Boolean {
+        return startGate.isInFlight(SystemClock.elapsedRealtime()) ||
+            ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING
+    }
+
     fun start(context: Context, forceStart: Boolean = false) {
         val storedMode = ShizukuSettings.getLastLaunchMode()
         val mode = resolveLaunchMethod(context, storedMode)
         val binderAlive = Shizuku.pingBinder()
+
+        // A start request from a user, boot, or automation overrides an earlier deliberate stop.
+        // The watchdog uses forceStart and has already checked this flag itself.
+        if (forceStart && ShizukuSettings.getManuallyStopped()) {
+            Log.i(TAG, "start ignored: the service was stopped on purpose")
+            return
+        }
+        if (!forceStart) {
+            ShizukuSettings.setManuallyStopped(false)
+        }
 
         // Do not trust the cached state machine here. It is driven by binder-death callbacks,
         // which can be delayed while the app process is cached/dozing. A stale RUNNING state
@@ -64,18 +100,37 @@ object ShizukuReceiverStarter {
             return
         }
 
+        if (!forceStart) {
+            if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING) {
+                Log.i(TAG, "start ignored: another start is already in progress")
+                return
+            }
+            if (!startGate.tryAcquire(SystemClock.elapsedRealtime())) {
+                Log.i(TAG, "start ignored: a previous start request is still being handled")
+                return
+            }
+        }
+
         if (mode == LaunchMethod.ROOT) {
-            rootStart(context)
+            if (!rootStart(context) && !forceStart) startGate.release()
         } else if ((mode == LaunchMethod.ADB || mode == LaunchMethod.WIRELESS_ADB) &&
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)) {
             if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
-                AdbStartWorker.enqueue(context)
-                updateNotification(context, WorkerState.AWAITING_WIFI)
+                try {
+                    AdbStartWorker.enqueue(context)
+                    updateNotification(context, WorkerState.AWAITING_WIFI)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to enqueue background start", e)
+                    if (!forceStart) startGate.release()
+                    showUnsupportedNotification(context)
+                }
             } else {
+                if (!forceStart) startGate.release()
                 showPermissionErrorNotification(context)
             }
         } else {
             Log.w(TAG, "Background start not supported: $mode")
+            if (!forceStart) startGate.release()
             showUnsupportedNotification(context)
         }
     }
@@ -191,21 +246,23 @@ object ShizukuReceiverStarter {
         nm.notify(NOTIFICATION_ID_DEBUGGING_RESTRICTED, notification)
     }
 
-    private fun rootStart(context: Context) {
+    private fun rootStart(context: Context): Boolean {
         if (!Shell.getShell().isRoot) {
             Log.w(TAG, "root start requested, but no root shell is available")
             //NotificationHelper.notify(context, AppConstants.NOTIFICATION_ID_STATUS, AppConstants.NOTIFICATION_CHANNEL_STATUS, R.string.notification_service_start_no_root)
             Shell.getCachedShell()?.close()
             showUnsupportedNotification(context)
-            return
+            return false
         }
 
-        try {
+        return try {
             ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
             Shell.cmd(Starter.internalCommand).exec()
+            true
         } catch (e: Exception) {
             Log.e(AppConstants.TAG, "Failed to start Shizuku with root", e)
             ShizukuStateMachine.update()
+            false
         }
     }
 

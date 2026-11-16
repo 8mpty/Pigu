@@ -115,6 +115,9 @@ class StarterActivity : AppBarActivity() {
                     else -> ShizukuSettings.LaunchMethod.ADB
                 }
             )
+            // A start from the UI is an explicit request, so it clears a previous deliberate
+            // stop before the watchdog is allowed to treat the service as crashed.
+            ShizukuSettings.setManuallyStopped(false)
             viewModel.start(root, port, discoverWireless)
         }
     }

@@ -6,6 +6,7 @@ import android.content.ContextWrapper;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import androidx.annotation.IntDef;
@@ -29,6 +30,8 @@ public class ShizukuSettings {
         public static final String KEY_AUTH_TOKEN = "auth_token";
         public static final String KEY_START_ON_BOOT = "start_on_boot";
         public static final String KEY_WATCHDOG = "watchdog";
+        public static final String KEY_MANUALLY_STOPPED = "manually_stopped";
+        public static final String KEY_SERVER_STARTED_BOOT = "server_started_boot";
         public static final String KEY_TCP_MODE = "tcp_mode";
         public static final String KEY_TCP_PORT = "tcp_port";
         public static final String KEY_KEEP_WIRELESS_DEBUGGING = "keep_wireless_debugging";
@@ -176,6 +179,52 @@ public class ShizukuSettings {
         getPreferences().edit().putBoolean(Keys.KEY_START_ON_BOOT, enable).apply();
     }
     
+    /**
+     * Set when the user stops the service on purpose. The watchdog must not treat that as a
+     * crash and start it again; only an explicit start request clears it.
+     */
+    public static boolean getManuallyStopped() {
+        return getPreferences().getBoolean(Keys.KEY_MANUALLY_STOPPED, false);
+    }
+
+    public static void setManuallyStopped(boolean stopped) {
+        if (!getPreferences().edit().putBoolean(Keys.KEY_MANUALLY_STOPPED, stopped).commit()) {
+            Log.w("ShizukuSettings", "Failed to persist manually-stopped state");
+        }
+    }
+
+    /** The boot in which the server last reached RUNNING, so a reboot is not treated as a crash. */
+    public static int getServerStartedBoot() {
+        return getPreferences().getInt(Keys.KEY_SERVER_STARTED_BOOT, -1);
+    }
+
+    public static void setServerStartedBoot(int bootCount) {
+        getPreferences().edit().putInt(Keys.KEY_SERVER_STARTED_BOOT, bootCount).apply();
+    }
+
+    private static int currentBootCount(Context context) {
+        try {
+            return Settings.Global.getInt(
+                    context.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+        } catch (Throwable tr) {
+            Log.w("ShizukuSettings", "Could not read BOOT_COUNT: " + tr.getMessage());
+            return -1;
+        }
+    }
+
+    public static void markServerStartedThisBoot(Context context) {
+        setServerStartedBoot(currentBootCount(context));
+    }
+
+    /**
+     * False after a reboot when the server has not started in this boot. If BOOT_COUNT is not
+     * available, return true so the watchdog keeps its previous recovery behavior.
+     */
+    public static boolean wasServerStartedThisBoot(Context context) {
+        int current = currentBootCount(context);
+        return current < 0 || getServerStartedBoot() == current;
+    }
+
     public static boolean getWatchdog() {
         return getPreferences().getBoolean(Keys.KEY_WATCHDOG, false);
     }

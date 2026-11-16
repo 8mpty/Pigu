@@ -151,6 +151,11 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
             }
         });
 
+        // The manager can only see binder death. Watch this process from the inside as well, so
+        // a stuck main thread or a dead core system service becomes a binder death the manager
+        // can recover from instead of a server that looks alive but answers nothing.
+        ServerWatchdog.start(mainHandler);
+
         BinderSender.register(this);
 
         mainHandler.post(() -> {
@@ -205,6 +210,7 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
     public void exit() {
         enforceManagerPermission("exit");
         LOGGER.i("exit");
+        ServerWatchdog.stop();
         System.exit(0);
     }
 

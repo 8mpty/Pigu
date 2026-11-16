@@ -22,7 +22,8 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Start / stop control** from the home screen, with a confirmation dialog when stopping.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.
 - **Option to keep wireless debugging on** after connecting, with a warning about the security trade-off.
-- **Watchdog** that restarts the service if it crashes.
+- **Two-layer watchdog:** the manager restarts a dead service, and the server exits itself when its main thread hangs or a required system service disappears.
+- **Recovery guards:** deliberate stops are respected, duplicate starts are suppressed, and repeated failed restarts stop instead of looping forever.
 - **Start on boot**, waiting for Wi-Fi when needed.
 - **Hardened permission prompt** that validates the caller, blocks obscured taps, discloses shared UIDs, and ignores taps for 500 ms after it appears.
 - **Automation intents** for Tasker, MacroDroid, Automate, etc.
@@ -160,7 +161,7 @@ Run the JVM unit tests for the pure decisions:
 ./gradlew :manager:testDebugUnitTest
 ```
 
-They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, and the wireless start route. These are plain JVM tests; they do not need a device or the Shizuku service.
+They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, and the duplicate-start gate. These are plain JVM tests; they do not need a device or the Shizuku service.
 
 ## What changed in this fork
 
@@ -205,6 +206,41 @@ The first hardening pass changes decisions around the existing architecture rath
 **Unit tests**
 
 - `:manager:testDebugUnitTest` covers the token gate and notification window, permission-request validation and label sanitizing, the boot claim, and the wireless start route.
+
+### Phase 1 reliability
+
+The second phase makes recovery work in the cases where “the binder died” is not the whole story.
+
+**Server watchdog**
+
+- The server watches its own main thread with a heartbeat. If the thread is silent for 60 seconds, or a required system service (`package`, `activity`, `user`, `appops`) disappears, it logs the stuck stack and exits. When the manager watchdog is enabled, that binder death is its cue to start a fresh process.
+- This covers a server that still holds a live binder but no longer answers, which binder-death monitoring cannot see.
+- An intentional server exit stops the server watchdog first, so a deliberate stop is not reported as a hang.
+
+**Manager recovery**
+
+- The watchdog probes the binder when it starts, when the screen unlocks, and every 60 seconds. This recovers a missed binder-death callback after Pigu's own process was not alive.
+- A deliberate stop is recorded. The watchdog will not restart the service until an explicit start request clears it; a transient `RUNNING` observation during shutdown does not.
+- If start-on-boot is off and the server has not run in the current boot, a dead binder is not treated as a crash. A reboot therefore does not silently start a service the user did not ask for.
+- Restart attempts are bounded: one attempt at a time, a 90-second cooldown, at most three attempts, and a three-minute in-flight guard. After that the watchdog posts a **Watchdog paused** notification and waits for a manual start or for the watchdog to be turned off and on again.
+- A `STARTING` state older than three minutes, or a `STOPPING` state older than one minute, is re-probed instead of disabling recovery forever.
+- The diagnostics snapshot also reports whether the service was stopped deliberately and whether it has run in the current boot.
+- Wireless recovery waits for the user to unlock; the unlock receiver retries immediately.
+
+**Duplicate starts**
+
+- Boot and automation start requests share a three-minute in-flight gate. A second request is ignored while one is being handled, and the gate is released as soon as the state reaches `RUNNING`, `STOPPED`, or `CRASHED`.
+- The watchdog checks that gate before starting a server of its own, so it does not race an enqueued worker whose start has not set `STARTING` yet.
+
+**Tests**
+
+- `:manager:testDebugUnitTest` now includes the restart-policy cooldown/limit/reset behavior and the duplicate-start gate's expiry and release behavior.
+
+**Limits**
+
+- The server watchdog is deliberately conservative; it kills the process only after a long silence or a missing core service. A main thread that is slow but still beating is not treated as a hang.
+- If `BOOT_COUNT` is unavailable, the manager falls back to allowing recovery, so the reboot guard is best-effort.
+- A server that repeatedly fails to start makes the watchdog stop retrying; the user must start it manually or toggle the watchdog.
 
 ### Removed
 
