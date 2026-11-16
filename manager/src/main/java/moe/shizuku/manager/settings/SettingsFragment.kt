@@ -48,7 +48,9 @@ import moe.shizuku.manager.ktx.setComponentEnabled
 import moe.shizuku.manager.receiver.BootCompleteReceiver
 import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
+import moe.shizuku.manager.security.AccessPause
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.PhantomProcessControl
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.SettingsPage
 import moe.shizuku.manager.utils.ShizukuStateMachine
@@ -64,6 +66,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     private lateinit var startOnBootPreference: TwoStatePreference
     private lateinit var watchdogPreference: TwoStatePreference
+    private lateinit var accessPausedPreference: TwoStatePreference
     private lateinit var tcpModePreference: Preference
     private lateinit var autoDisableUsbDebuggingPreference: TwoStatePreference
     private lateinit var keepWirelessDebuggingPreference: TwoStatePreference
@@ -73,6 +76,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     private lateinit var blackNightThemePreference: TwoStatePreference
     private lateinit var useSystemColorPreference: TwoStatePreference
     private lateinit var legacyPairingPreference: TwoStatePreference
+    private lateinit var phantomProcessControlPreference: TwoStatePreference
     private lateinit var advancedCategory: PreferenceCategory
 
     private lateinit var batteryOptimizationListener: ActivityResultLauncher<Intent>
@@ -94,6 +98,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
         startOnBootPreference = findPreference(KEY_START_ON_BOOT)!!
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
+        accessPausedPreference = findPreference(KEY_ACCESS_PAUSED)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
         autoDisableUsbDebuggingPreference = findPreference(KEY_AUTO_DISABLE_USB_DEBUGGING)!!
         keepWirelessDebuggingPreference = findPreference(KEY_KEEP_WIRELESS_DEBUGGING)!!
@@ -103,6 +108,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         blackNightThemePreference = findPreference(KEY_BLACK_NIGHT_THEME)!!
         useSystemColorPreference = findPreference(KEY_USE_SYSTEM_COLOR)!!
         legacyPairingPreference = findPreference(KEY_LEGACY_PAIRING)!!
+        phantomProcessControlPreference = findPreference(KEY_PHANTOM_PROCESS_CONTROL)!!
         advancedCategory = findPreference(KEY_CATEGORY_ADVANCED)!!
 
         val debuggingSettingsRestricted = AdbSettings.isDebuggingSettingsRestricted(context)
@@ -164,6 +170,41 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                             ShizukuSettings.setWatchdog(context, newValue)
                             isChecked = newValue
                         }
+                    }
+                }
+                false
+            }
+        }
+
+        accessPausedPreference.apply {
+            isChecked = ShizukuSettings.getAccessPaused()
+
+            setOnPreferenceChangeListener { _, newValue ->
+                if (newValue is Boolean) {
+                    if (newValue) {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.settings_access_paused_dialog_title)
+                            .setMessage(R.string.settings_access_paused_dialog_message)
+                            .setPositiveButton(R.string.settings_access_paused_enable) { _, _ ->
+                                AccessPause.pause()
+                                isChecked = true
+                            }
+                            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                                isChecked = false
+                            }
+                            .show()
+                    } else {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.settings_access_resume_dialog_title)
+                            .setMessage(R.string.settings_access_resume_dialog_message)
+                            .setPositiveButton(R.string.settings_access_resume) { _, _ ->
+                                AccessPause.resume(context)
+                                isChecked = false
+                            }
+                            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                                isChecked = true
+                            }
+                            .show()
                     }
                 }
                 false
@@ -282,13 +323,44 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             isVisible = !EnvironmentUtils.isTelevision()
         }
 
-        advancedCategory.isVisible = legacyPairingPreference.isVisible
+        phantomProcessControlPreference.apply {
+            isVisible = PhantomProcessControl.isSupported()
+            isChecked = ShizukuSettings.getPhantomProcessControl()
+            summary = context.getString(R.string.settings_phantom_process_summary)
+
+            setOnPreferenceChangeListener { _, newValue ->
+                if (newValue is Boolean) {
+                    if (newValue) {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.settings_phantom_process_dialog_title)
+                            .setMessage(R.string.settings_phantom_process_dialog_message)
+                            .setPositiveButton(R.string.settings_phantom_process_enable) { _, _ ->
+                                applyPhantomProcessControl(true)
+                            }
+                            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                                isChecked = false
+                            }
+                            .show()
+                    } else {
+                        applyPhantomProcessControl(false)
+                    }
+                }
+                false
+            }
+        }
+
+        advancedCategory.isVisible =
+            legacyPairingPreference.isVisible || phantomProcessControlPreference.isVisible
     }
 
     override fun onResume() {
         super.onResume()
         preferenceScreen.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
         ShizukuStateMachine.addListener(stateListener)
+        if (::accessPausedPreference.isInitialized) {
+            accessPausedPreference.isChecked = ShizukuSettings.getAccessPaused()
+        }
+        refreshPhantomProcessControl()
     }
 
     override fun onPause() {
@@ -345,6 +417,75 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                 (currentPort > 0) && (currentPort != newPort)
             }
             else -> false
+        }
+    }
+
+    private fun applyPhantomProcessControl(prevent: Boolean) {
+        if (!::phantomProcessControlPreference.isInitialized) return
+        val context = requireContext()
+        lifecycleScope.launch {
+            phantomProcessControlPreference.isEnabled = false
+            when (val result = PhantomProcessControl.setPreventionEnabled(prevent)) {
+                PhantomProcessControl.Result.Success -> {
+                    ShizukuSettings.setPhantomProcessControl(prevent)
+                    phantomProcessControlPreference.isChecked = prevent
+                    phantomProcessControlPreference.summary = context.getString(
+                        if (prevent) R.string.settings_phantom_process_summary_on
+                        else R.string.settings_phantom_process_summary_off
+                    )
+                }
+                is PhantomProcessControl.Result.Failure -> {
+                    phantomProcessControlPreference.isChecked =
+                        ShizukuSettings.getPhantomProcessControl()
+                    MaterialAlertDialogBuilder(context)
+                        .setTitle(R.string.settings_phantom_process)
+                        .setMessage(
+                            context.getString(
+                                R.string.settings_phantom_process_failed,
+                                result.message
+                            )
+                        )
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            }
+            phantomProcessControlPreference.isEnabled = ShizukuStateMachine.isRunning()
+        }
+    }
+
+    private fun refreshPhantomProcessControl() {
+        if (!::phantomProcessControlPreference.isInitialized) return
+        if (!phantomProcessControlPreference.isVisible) return
+
+        val context = requireContext()
+        if (!ShizukuStateMachine.isRunning()) {
+            phantomProcessControlPreference.isEnabled = false
+            phantomProcessControlPreference.isChecked = ShizukuSettings.getPhantomProcessControl()
+            phantomProcessControlPreference.summary =
+                context.getString(R.string.settings_phantom_process_summary_unavailable)
+            return
+        }
+
+        phantomProcessControlPreference.isEnabled = false
+        lifecycleScope.launch {
+            val state = PhantomProcessControl.readState()
+            val prevent = state == PhantomProcessControl.State.DISABLED
+            phantomProcessControlPreference.isChecked = prevent
+            phantomProcessControlPreference.isEnabled = ShizukuStateMachine.isRunning()
+            phantomProcessControlPreference.summary = context.getString(
+                when (state) {
+                    PhantomProcessControl.State.DISABLED ->
+                        R.string.settings_phantom_process_summary_on
+                    PhantomProcessControl.State.DEFAULT ->
+                        R.string.settings_phantom_process_summary_off
+                    else -> R.string.settings_phantom_process_summary
+                }
+            )
+            if (state != PhantomProcessControl.State.UNKNOWN &&
+                state != PhantomProcessControl.State.UNSUPPORTED
+            ) {
+                ShizukuSettings.setPhantomProcessControl(prevent)
+            }
         }
     }
 

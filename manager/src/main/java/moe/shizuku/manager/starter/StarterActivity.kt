@@ -104,6 +104,11 @@ class StarterActivity : AppBarActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && !hasStarted) {
             hasStarted = true
+            if (ShizukuSettings.getAccessPaused()) {
+                Toast.makeText(this, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
             val root = intent.getBooleanExtra(EXTRA_IS_ROOT, false)
             val port = intent.getIntExtra(EXTRA_PORT, 0)
             val discoverWireless = intent.getBooleanExtra(EXTRA_DISCOVER_WIRELESS, false)

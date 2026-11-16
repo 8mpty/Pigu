@@ -49,6 +49,7 @@ object PiguDiagnostics {
 
         add("Service state", ShizukuStateMachine.get().name)
         add("Service running", status.isRunning)
+        add("App access paused", enabled(ShizukuSettings.getAccessPaused()))
         add("Manually stopped", if (ShizukuSettings.getManuallyStopped()) "yes" else "no")
         add("Server started this boot", if (ShizukuSettings.wasServerStartedThisBoot(context)) "yes" else "no")
         if (status.isRunning) {
@@ -64,6 +65,7 @@ object PiguDiagnostics {
         add("Start on boot", enabled(ShizukuSettings.getStartOnBoot(context)))
         add("Watchdog preference", enabled(ShizukuSettings.getWatchdog()))
         add("Watchdog service running", ShizukuSettings.isWatchdogRunning())
+        add("Phantom process control", enabled(ShizukuSettings.getPhantomProcessControl()))
 
         add("USB debugging", globalBoolean(context, Settings.Global.ADB_ENABLED))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

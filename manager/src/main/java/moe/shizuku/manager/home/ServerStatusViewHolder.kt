@@ -58,6 +58,19 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
     override fun onBind() {
         val context = itemView.context
         val status = data
+
+        if (ShizukuSettings.getAccessPaused()) {
+            iconView.setImageDrawable(ContextCompat.getDrawable(context, R.drawable.ic_pause_24))
+            textView.text = context.getString(
+                R.string.home_status_service_paused,
+                context.getString(R.string.app_name)
+            ).toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
+            summaryView.text = context.getString(R.string.home_status_service_paused_summary)
+            summaryView.visibility = View.VISIBLE
+            binding.buttonStop.isVisible = false
+            return
+        }
+
         val ok = status.isRunning
         val isRoot = status.uid == 0
         val apiVersion = status.apiVersion

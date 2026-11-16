@@ -70,6 +70,13 @@ object ShizukuReceiverStarter {
     }
 
     fun start(context: Context, forceStart: Boolean = false) {
+        // The global pause is a user decision, not a crash. It blocks the watchdog, boot,
+        // automation and explicit starts alike until the user resumes from the pause card.
+        if (ShizukuSettings.getAccessPaused()) {
+            Log.i(TAG, "start ignored: app access is paused")
+            return
+        }
+
         val storedMode = ShizukuSettings.getLastLaunchMode()
         val mode = resolveLaunchMethod(context, storedMode)
         val binderAlive = Shizuku.pingBinder()

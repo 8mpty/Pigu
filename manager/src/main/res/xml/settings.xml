@@ -21,6 +21,11 @@
             android:summary="@string/settings_watchdog_summary"
             android:title="@string/settings_watchdog" />
 
+        <SwitchPreferenceCompat
+            android:key="access_paused"
+            android:summary="@string/settings_access_paused_summary"
+            android:title="@string/settings_access_paused" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -92,6 +97,12 @@
             android:key="legacy_pairing"
             android:summary="@string/settings_legacy_pairing_summary"
             android:title="@string/settings_legacy_pairing" />
+
+        <SwitchPreferenceCompat
+            android:key="phantom_process_control"
+            android:persistent="false"
+            android:summary="@string/settings_phantom_process_summary"
+            android:title="@string/settings_phantom_process" />
 
     </PreferenceCategory>
 

@@ -1,5 +1,6 @@
 package moe.shizuku.manager.home
 
+import moe.shizuku.manager.management.AppDiscoverySummary
 import moe.shizuku.manager.model.ServiceStatus
 import moe.shizuku.manager.utils.CompanionApp
 import rikka.recyclerview.IdBasedRecyclerViewAdapter
@@ -24,15 +25,19 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         return IndexCreatorPool()
     }
 
-    fun updateData(status: ServiceStatus, grantedCount: Int, companion: CompanionApp.Status) {
+    fun updateData(
+        status: ServiceStatus,
+        summary: AppDiscoverySummary,
+        companion: CompanionApp.Status,
+    ) {
         clear()
-        addItem(ManageAppsViewHolder.CREATOR, status to grantedCount, ID_APPS)
+        addItem(ManageAppsViewHolder.CREATOR, ManageAppsData(status, summary), ID_APPS)
         addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
         addItem(CompanionViewHolder.CREATOR, companion, ID_COMPANION)
         addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
         addItem(
             DiagnosticsViewHolder.CREATOR,
-            DiagnosticsData(status, grantedCount, companion),
+            DiagnosticsData(status, summary.authorized, companion),
             ID_DIAGNOSTICS,
         )
         addItem(DeveloperGuideViewHolder.CREATOR, null, ID_DEVELOPER_GUIDE)

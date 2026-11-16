@@ -1,6 +1,7 @@
 package moe.shizuku.manager.home
 
 import moe.shizuku.manager.management.AppsViewModel
+import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.utils.UserHandleCompat
 import rikka.recyclerview.IdBasedRecyclerViewAdapter
 import rikka.recyclerview.IndexCreatorPool
@@ -16,6 +17,7 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
     companion object {
 
         private const val ID_STATUS = 0L
+        private const val ID_PAUSED = 1L
         private const val ID_PAIRING_METHODS = 3L
         private const val ID_DETAILS = 4L
         private const val ID_ADB_PERMISSION_LIMITED = 7L
@@ -28,15 +30,21 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
     fun updateData() {
         val status = homeModel.serviceStatus.value?.data ?: return
         val running = status.isRunning
+        val paused = ShizukuSettings.getAccessPaused()
 
         clear()
         addItem(ServerStatusViewHolder.CREATOR, status, ID_STATUS)
+
+        if (paused) {
+            addItem(PauseViewHolder.CREATOR, null, ID_PAUSED)
+        }
 
         if (running && !status.permission) {
             addItem(AdbPermissionLimitedViewHolder.CREATOR, status, ID_ADB_PERMISSION_LIMITED)
         }
 
-        if (UserHandleCompat.myUserId() == 0) {
+        // Starting methods would only be refused while paused, so do not offer them.
+        if (!paused && UserHandleCompat.myUserId() == 0) {
             addItem(PairingMethodsViewHolder.CREATOR, null, ID_PAIRING_METHODS)
         }
 

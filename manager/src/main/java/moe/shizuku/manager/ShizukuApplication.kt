@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import com.topjohnwu.superuser.Shell
 import moe.shizuku.manager.ktx.logd
+import moe.shizuku.manager.security.GlobalAccess
 import moe.shizuku.manager.service.WatchdogService
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import org.lsposed.hiddenapibypass.HiddenApiBypass
@@ -44,6 +45,14 @@ class ShizukuApplication : Application() {
         AppCompatDelegate.setDefaultNightMode(ShizukuSettings.getNightMode())
 
         if(ShizukuSettings.getWatchdog()) WatchdogService.start(context)
+
+        // If the service was started externally while a pause is saved, put the server back into
+        // the paused state before any app can use the new binder.
+        ShizukuStateMachine.addListener { state ->
+            if (state == ShizukuStateMachine.State.RUNNING) {
+                GlobalAccess.applyPersistedState()
+            }
+        }
     }
 
     override fun onCreate() {

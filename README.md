@@ -20,6 +20,7 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 
 - **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root.
 - **Start / stop control** from the home screen, with a confirmation dialog when stopping.
+- **Global pause / kill switch** that stops the service, keeps app grants, and blocks every start path until resumed.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.
 - **Option to keep wireless debugging on** after connecting, with a warning about the security trade-off.
 - **Two-layer watchdog:** the manager restarts a dead service, and the server exits itself when its main thread hangs or a required system service disappears.
@@ -28,6 +29,8 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Hardened permission prompt** that validates the caller, blocks obscured taps, discloses shared UIDs, and ignores taps for 500 ms after it appears.
 - **Automation intents** for Tasker, MacroDroid, Automate, etc.
 - **Copy diagnostics** on the Developer page for privacy-conscious bug reports.
+- **App discovery** that lists every app declaring the Shizuku permission, with a per-app hint when an older client may need the companion.
+- **Optional phantom-process control** (Android 12+) with an explicit warning and a one-tap restore of Android's default.
 - **Android TV and VR support**, including D-Pad navigation and pairing without notifications.
 - **Android 17 / SDK 37 compatibility** inherited from the base fork.
 - **English-only UI**, with a choice between the system locale and English for formatting.
@@ -93,6 +96,7 @@ Older Android versions keep the previous automatic behavior.
 - No update checker; updates are installed manually.
 - The automation auth token is stored in a separate `secrets` preferences file that is excluded from cloud backup and device transfer. Existing tokens are migrated without being regenerated.
 - The diagnostics snapshot contains app, device, and service state only. It never includes the auth token, Wi-Fi names, IP addresses, or app lists.
+- The optional phantom-process control changes one global Android setting (`settings_enable_monitor_phantom_procs`). It is off by default, warns before changing anything, verifies the result, and restores Android's default when turned off.
 - Only the permissions needed for the service, wireless pairing, and permission-prompt protection are declared.
 
 ### Permissions
@@ -161,7 +165,7 @@ Run the JVM unit tests for the pure decisions:
 ./gradlew :manager:testDebugUnitTest
 ```
 
-They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, and the duplicate-start gate. These are plain JVM tests; they do not need a device or the Shizuku service.
+They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, the duplicate-start gate, the wireless port retry schedule, and app-discovery companion counts. These are plain JVM tests; they do not need a device or the Shizuku service.
 
 ## What changed in this fork
 
@@ -241,6 +245,45 @@ The second phase makes recovery work in the cases where “the binder died” is
 - The server watchdog is deliberately conservative; it kills the process only after a long silence or a missing core service. A main thread that is slow but still beating is not treated as a hang.
 - If `BOOT_COUNT` is unavailable, the manager falls back to allowing recovery, so the reboot guard is best-effort.
 - A server that repeatedly fails to start makes the watchdog stop retrying; the user must start it manually or toggle the watchdog.
+
+### Phase 2 security and control
+
+The third phase adds the controls that need more than a manager-side preference: a real pause at the server boundary, app discovery, an explicit phantom-process opt-in, and a more patient wireless port retry.
+
+**Global pause / kill switch**
+
+- The server now stores `access_paused` in its own configuration. While it is set, every binder transaction from a client other than the manager is rejected, including `attachApplication`, permission requests, `newProcess`, user services, and `transactRemote`. The manager can still read and clear the flag, and an explicit stop still works.
+- The manager exposes **Settings → Pause app access** and a **Pigu is paused** card on the home screen with a **Resume** action.
+- Pausing stops the running service, keeps every app grant, and blocks the watchdog, boot receiver, automation intents, the starter screen, and the ADB worker. Resuming clears the flag and restarts the service only if it was running when the pause began.
+- The pause flag is written synchronously before the server can exit. A server started later with the pause still saved re-applies it when the manager receives the new binder.
+- The manager-only `getApplications` transaction is now actually enforced as manager-only. Previously it was handled before the normal permission check, so any attached client could ask for the installed-app slice.
+
+**App discovery and companion status**
+
+- App discovery now includes every app that declares the Shizuku permission, not only apps that advertise `V3_SUPPORT` or already have a grant. This makes older clients visible in **App Management** before they ask for access.
+- Each app row marks an older client that does not advertise `V3_SUPPORT` when the companion is missing: **May require companion app**. Modern clients are not marked, and the hint disappears once the companion is installed.
+- The Developer page shows how many apps are authorized and how many older clients may need the companion; **App Management** lists every discovered app, including unauthorized ones. The companion info dialog explains that this is a heuristic, not a guarantee.
+
+**Optional phantom-process control**
+
+- On Android 12+, **Settings → Advanced → Prevent phantom process killing** runs the documented `settings put global settings_enable_monitor_phantom_procs false` change through the Pigu service.
+- It is opt-in and shows a warning that the change is global: it affects every app, can increase battery use, can let runaway background processes continue, and does not override an OEM's own process manager.
+- Every change is read back and verified. Turning the option off runs `settings delete`, restoring Android's default rather than writing a second opinion. The preference is only available while the service is running.
+- The diagnostics snapshot records the cached setting, not a live binder call.
+
+**Wireless port retry and verification**
+
+- The fixed five-attempt, one-second retry is replaced with a seven-attempt backoff schedule (0, 0.5, 1, 2, 4, 8, and 12 seconds). A socket timeout is retried instead of being treated as fatal.
+- After `tcpip:<port>`, Pigu waits briefly for Android to report the new TCP port, then verifies the port by actually connecting. If the new port never comes up, it retries the original port before failing, which covers a partial TCP-mode switch.
+- The wait is still bounded. A device that accepts neither port now fails after tens of seconds instead of ten; each socket timeout can extend that, and the worker/notification path reports the failure as before.
+
+**Tests and limits**
+
+- `:manager:testDebugUnitTest` now also covers the port retry schedule's ordering, bounds, and invalid input, plus the discovery summary's companion-candidate count.
+- The pause is a binder-boundary control, not a sandbox. A privileged call that was already executing when the pause was set can finish. An externally started server is paused when the manager receives its binder; if the manager never runs, the saved server flag is the protection. If Pigu was already stopped when you paused, the pause acts as a start gate and cannot write the server flag until a server exists.
+- The companion hint is a heuristic based on `V3_SUPPORT`. A modern client can still hard-code the official package, and a legacy client can work without the companion.
+- Phantom-process control is a global platform workaround. It does not guarantee that Pigu survives an OEM battery manager, and Android may ignore or reset the setting after an update.
+- The wireless retry improvements do not add an endless mDNS hunt. If both the new and original ports fail, the user still has to re-pair or rediscover.
 
 ### Removed
 

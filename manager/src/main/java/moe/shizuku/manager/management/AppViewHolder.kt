@@ -96,7 +96,13 @@ class AppViewHolder(private val binding: AppListItemBinding) : BaseViewHolder<Pa
         pkg.text = ai.packageName
         switchWidget.isChecked = AuthorizationManager.granted(packageName, uid)
         root.visibility = if (ai.metaData != null && ai.metaData.getBoolean("moe.shizuku.client.V3_REQUIRES_ROOT")) View.VISIBLE else View.GONE
-        binding.companionNote.isVisible = !CompanionApp.isInstalled(context)
+
+        // V3 clients attach through the Shizuku provider and normally detect Pigu without the
+        // package stub. Older clients are the ones that most often hard-check the official
+        // package, so only they get the companion hint.
+        val modernClient = ai.metaData?.getBoolean("moe.shizuku.client.V3_SUPPORT") == true
+        binding.companionNote.isVisible =
+            !modernClient && !CompanionApp.isInstalled(context)
 
         loadIconJob = AppIconCache.loadIconBitmapAsync(context, ai, ai.uid / 100000, icon)
     }

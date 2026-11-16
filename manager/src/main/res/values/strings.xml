@@ -74,7 +74,11 @@
         <item quantity="one"><![CDATA[Authorized %d application]]></item>
         <item quantity="other"><![CDATA[Authorized %d applications]]></item>
     </plurals>
-    <string name="home_app_management_view_authorized_apps"><![CDATA[Tap to manage authorized apps]]></string>
+    <plurals name="home_app_management_companion_candidates">
+        <item quantity="one"><![CDATA[%d older client may need the companion · tap to review]]></item>
+        <item quantity="other"><![CDATA[%d older clients may need the companion · tap to review]]></item>
+    </plurals>
+    <string name="home_app_management_view_authorized_apps"><![CDATA[Tap to discover and manage apps]]></string>
     <string name="home_app_management_empty">Apps that have requested or declared the Shizuku permission will show here.</string>
 
     <!-- Home - Automation -->
@@ -171,6 +175,20 @@
     <string name="settings_use_system_color">Use system theme color</string>
     <string name="settings_watchdog">Watchdog</string>
     <string name="settings_watchdog_summary">Automatically restart Shizuku if it crashes</string>
+    <string name="settings_access_paused">Pause app access</string>
+    <string name="settings_access_paused_summary">Stop the service, keep app grants, and block every automatic start until you resume</string>
+    <string name="settings_access_paused_dialog_title">Pause all app access?</string>
+    <string name="settings_access_paused_dialog_message">Pigu will reject every app, stop the running service, and block the watchdog, boot, automation, and manual starts until you resume.\n\nApp grants are kept, so resuming does not ask for permission again. Apps will fail while Pigu is paused.</string>
+    <string name="settings_access_paused_enable">Pause access</string>
+    <string name="settings_access_resume_dialog_title">Resume app access?</string>
+    <string name="settings_access_resume_dialog_message">Pigu will clear the pause. If the service was running when you paused, it will try to start it again using the last start method.</string>
+    <string name="settings_access_resume">Resume access</string>
+    <string name="home_status_service_paused">%1$s is paused</string>
+    <string name="home_status_service_paused_summary">App access is paused. No app can reach the service, and automatic starts are blocked.</string>
+    <string name="home_pause_title">Pigu is paused</string>
+    <string name="home_pause_summary">App access is paused. Grants are kept, but apps cannot use the service until you resume.</string>
+    <string name="home_pause_resume">Resume</string>
+    <string name="access_pause_start_blocked">Pigu is paused. Resume app access first.</string>
     <string name="settings_tcp_mode">TCP mode</string>
     <string name="settings_tcp_mode_summary_on">On · port %1$d · tap to change</string>
     <string name="settings_tcp_mode_summary_off">Off · tap to choose a port</string>
@@ -225,13 +243,22 @@
     <string name="companion_open_settings">App info</string>
     <string name="companion_close">Close</string>
     <string name="app_management_may_require_companion">May require companion app</string>
-    <string name="app_management_companion_info_title">Companion app</string>
-    <string name="app_management_companion_info_message">Apps in this list may need the Pigu Companion if they specifically check for Shizuku and cannot detect Pigu. Many apps work without it, so install it only if an app reports that Shizuku is missing.\n\nThe companion uses the official Shizuku package name (moe.shizuku.privileged.api). It does not provide the service; Pigu still does. Its install, status and uninstall options are on the Developer page.</string>
+    <string name="app_management_companion_info_title">App discovery and companion</string>
+    <string name="app_management_companion_info_message">Apps that declare the Shizuku permission are listed here, including apps you have not authorized yet. A client marked as an older client does not advertise V3 support, so it is more likely to check for the official Shizuku package.\n\nInstall the Pigu Companion only if an app reports that Shizuku is missing. It uses the official package name moe.shizuku.privileged.api. It does not provide the service; Pigu still does. Its install, status and uninstall options are on the Developer page.</string>
     <string name="language_english" translatable="false">English</string>
     <string name="settings_report_bug">Report a bug</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_legacy_pairing">Legacy pairing</string>
     <string name="settings_legacy_pairing_summary">Enter the pairing code in a dialog instead of a notification</string>
+    <string name="settings_phantom_process">Prevent phantom process killing</string>
+    <string name="settings_phantom_process_summary">Experimental: stop Android from reaping Pigu\'s server process (Android 12+)</string>
+    <string name="settings_phantom_process_summary_on">On · Android\'s global phantom-process limit is disabled</string>
+    <string name="settings_phantom_process_summary_off">Off · Android\'s default phantom-process limit is active</string>
+    <string name="settings_phantom_process_summary_unavailable">Start Pigu to change this setting</string>
+    <string name="settings_phantom_process_dialog_title">Disable Android\'s phantom-process limit?</string>
+    <string name="settings_phantom_process_dialog_message">Android 12 and newer can kill Pigu\'s shell process as a “phantom process” when the device is under memory pressure.\n\nDisabling the limit may keep Pigu running, but it changes a global setting for every app. It can increase battery use and let runaway background processes continue. It does not override an OEM\'s own process manager, and it may not survive an Android update.\n\nYou can restore Android\'s default from this screen at any time.</string>
+    <string name="settings_phantom_process_enable">Disable the limit</string>
+    <string name="settings_phantom_process_failed">Could not change the phantom-process setting: %1$s</string>
 
     <!-- Bug Report Dialog -->
     <string name="bug_report_dialog_before_reporting">First, please do the following:</string>

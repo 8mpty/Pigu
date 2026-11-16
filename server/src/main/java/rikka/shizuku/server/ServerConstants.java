@@ -10,4 +10,6 @@ public class ServerConstants {
     public static final String REQUEST_PERMISSION_ACTION = BuildConfig.MANAGER_APPLICATION_ID + ".intent.action.REQUEST_PERMISSION";
 
     public static final int BINDER_TRANSACTION_getApplications = 10001;
+    public static final int BINDER_TRANSACTION_setAccessPaused = 10002;
+    public static final int BINDER_TRANSACTION_isAccessPaused = 10003;
 }

@@ -31,6 +31,9 @@ public class ShizukuSettings {
         public static final String KEY_START_ON_BOOT = "start_on_boot";
         public static final String KEY_WATCHDOG = "watchdog";
         public static final String KEY_MANUALLY_STOPPED = "manually_stopped";
+        public static final String KEY_ACCESS_PAUSED = "access_paused";
+        public static final String KEY_PAUSED_WAS_RUNNING = "paused_was_running";
+        public static final String KEY_PHANTOM_PROCESS_CONTROL = "phantom_process_control";
         public static final String KEY_SERVER_STARTED_BOOT = "server_started_boot";
         public static final String KEY_TCP_MODE = "tcp_mode";
         public static final String KEY_TCP_PORT = "tcp_port";
@@ -191,6 +194,42 @@ public class ShizukuSettings {
         if (!getPreferences().edit().putBoolean(Keys.KEY_MANUALLY_STOPPED, stopped).commit()) {
             Log.w("ShizukuSettings", "Failed to persist manually-stopped state");
         }
+    }
+
+    /**
+     * The global pause is stronger than a normal stop: it is a persistent user decision, so it
+     * also blocks every automatic and explicit start until the user resumes. It is committed
+     * synchronously because a start racing the pause must not read the old value.
+     */
+    public static boolean getAccessPaused() {
+        return getPreferences().getBoolean(Keys.KEY_ACCESS_PAUSED, false);
+    }
+
+    public static void setAccessPaused(boolean paused) {
+        if (!getPreferences().edit().putBoolean(Keys.KEY_ACCESS_PAUSED, paused).commit()) {
+            Log.w("ShizukuSettings", "Failed to persist access-paused state");
+        }
+    }
+
+    /** Whether the service was running when the user paused it, for a one-tap resume. */
+    public static boolean getPausedWasRunning() {
+        return getPreferences().getBoolean(Keys.KEY_PAUSED_WAS_RUNNING, false);
+    }
+
+    public static void setPausedWasRunning(boolean running) {
+        getPreferences().edit().putBoolean(Keys.KEY_PAUSED_WAS_RUNNING, running).commit();
+    }
+
+    /**
+     * Mirrors the server-side phantom-process setting so diagnostics can show the user's choice
+     * without a binder call. The server remains the source of truth; this is a cache.
+     */
+    public static boolean getPhantomProcessControl() {
+        return getPreferences().getBoolean(Keys.KEY_PHANTOM_PROCESS_CONTROL, false);
+    }
+
+    public static void setPhantomProcessControl(boolean enabled) {
+        getPreferences().edit().putBoolean(Keys.KEY_PHANTOM_PROCESS_CONTROL, enabled).apply();
     }
 
     /** The boot in which the server last reached RUNNING, so a reboot is not treated as a crash. */

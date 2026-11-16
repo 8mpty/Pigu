@@ -28,6 +28,10 @@ import rikka.html.text.HtmlCompat
 object StartMethods {
 
     fun startWireless(context: Context, scope: CoroutineScope) {
+        if (ShizukuSettings.getAccessPaused()) {
+            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
+            return
+        }
         if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING) {
             Toast.makeText(context, context.getString(R.string.toast_shizuku_already_starting), Toast.LENGTH_SHORT).show()
             return
@@ -129,6 +133,10 @@ object StartMethods {
     }
 
     fun startRoot(context: Context) {
+        if (ShizukuSettings.getAccessPaused()) {
+            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
+            return
+        }
         context.startActivity(
             Intent(context, StarterActivity::class.java).apply {
                 putExtra(StarterActivity.EXTRA_IS_ROOT, true)

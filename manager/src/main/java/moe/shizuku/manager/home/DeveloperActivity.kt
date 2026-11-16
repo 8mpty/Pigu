@@ -5,6 +5,7 @@ import androidx.activity.viewModels
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.databinding.HomeActivityBinding
+import moe.shizuku.manager.management.AppDiscoverySummary
 import moe.shizuku.manager.management.AppsViewModel
 import moe.shizuku.manager.model.ServiceStatus
 import moe.shizuku.manager.utils.CompanionApp
@@ -31,7 +32,7 @@ class DeveloperActivity : AppBarActivity() {
         homeModel.serviceStatus.observe(this) {
             if (it.status == Status.SUCCESS) updateData()
         }
-        appsModel.grantedCount.observe(this) {
+        appsModel.summary.observe(this) {
             if (it.status == Status.SUCCESS) updateData()
         }
 
@@ -61,7 +62,7 @@ class DeveloperActivity : AppBarActivity() {
     private fun updateData() {
         adapter.updateData(
             homeModel.serviceStatus.value?.data ?: ServiceStatus(),
-            appsModel.grantedCount.value?.data ?: 0,
+            appsModel.summary.value?.data ?: AppDiscoverySummary(0, 0, 0, CompanionApp.isInstalled(this)),
             CompanionApp.status(this, loadIdentity = true)
         )
     }

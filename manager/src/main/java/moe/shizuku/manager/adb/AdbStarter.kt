@@ -5,7 +5,6 @@ import android.provider.Settings
 import android.widget.Toast
 import java.io.EOFException
 import java.net.SocketException
-import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,6 +25,10 @@ object AdbStarter {
             command(cmd) { log?.invoke(String(it)) }
         }
 
+        if (ShizukuSettings.getAccessPaused()) {
+            throw IllegalStateException("Pigu is paused")
+        }
+
         ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
         log?.invoke("Starting with wireless adb...\n")
         
@@ -38,6 +41,7 @@ object AdbStarter {
                     }
 
                 var activePort = port
+                val originalPort = port
                 val tcpMode = ShizukuSettings.getTcpMode()
                 val tcpPort = ShizukuSettings.getTcpPort()
                 if (tcpMode && activePort != tcpPort) {
@@ -49,19 +53,36 @@ object AdbStarter {
                         log?.invoke("Successfully connected on port $activePort...")
                         log?.invoke("\nRestarting in TCP mode port: $tcpPort")
 
-                        activePort = tcpPort
                         runCatching {
-                            client.command("tcpip:$activePort")
+                            client.command("tcpip:$tcpPort")
                         }.onFailure { if (it !is EOFException && it !is SocketException) throw it } // Expected when ADB restarts in TCP mode
+                    }
+
+                    activePort = tcpPort
+                    awaitTcpPort(activePort, log)
+                }
+
+                suspend fun startOn(port: Int) {
+                    if (ShizukuSettings.getAccessPaused()) {
+                        throw IllegalStateException("Pigu is paused")
+                    }
+                    log?.invoke("Connecting on port $port...")
+                    connectWithRetry("127.0.0.1", port, key, log).use { client ->
+                        log?.invoke("Successfully connected on port $port...\n")
+                        client.runCommand("shell:${Starter.internalCommand}")
                     }
                 }
 
-                log?.invoke("Connecting on port $activePort...")
+                try {
+                    startOn(activePort)
+                } catch (e: Exception) {
+                    if (activePort == originalPort) throw e
 
-                AdbClient("127.0.0.1", activePort, key).use { client ->
-                    connectWithRetry(client)
-                    log?.invoke("Successfully connected on port $activePort...\n")
-                    client.runCommand("shell:${Starter.internalCommand}")
+                    // The tcpip switch may have failed before adbd listened on the new port.
+                    // The old port is sometimes still alive, and retrying it is cheaper than
+                    // making the user pair again.
+                    log?.invoke("Could not connect on port $activePort; retrying the original port $originalPort...")
+                    startOn(originalPort)
                 }
             }
         } catch (e: Throwable) {
@@ -109,8 +130,7 @@ object AdbStarter {
             ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
             val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku")
             withContext(Dispatchers.IO) {
-                AdbClient("127.0.0.1", port, key).use { client ->
-                    connectWithRetry(client)
+                connectWithRetry("127.0.0.1", port, key, null).use { client ->
                     client.command("usb:")
                 }
             }
@@ -129,22 +149,49 @@ object AdbStarter {
         }
     }
 
-    private suspend fun connectWithRetry(client: AdbClient) {
-        var delayTime = 0L
-        val maxAttempts = 5
-        for (attempt in 1..maxAttempts) {
+    /**
+     * Best-effort check that adbd has actually published the new TCP port. A stale property is
+     * not fatal: the connection retries are the real verification, and some devices update the
+     * property only after the socket is already accepting connections.
+     */
+    private suspend fun awaitTcpPort(port: Int, log: ((String) -> Unit)?) {
+        repeat(20) {
+            if (EnvironmentUtils.getAdbTcpPort() == port) {
+                log?.invoke("ADB reports TCP port $port")
+                return
+            }
+            delay(250)
+        }
+        log?.invoke("ADB did not report TCP port $port yet; trying it anyway")
+    }
+
+    private suspend fun connectWithRetry(
+        host: String,
+        port: Int,
+        key: AdbKey,
+        log: ((String) -> Unit)?,
+    ): AdbClient {
+        var last: Exception? = null
+        val schedule = PortRetrySchedule.DEFAULT
+
+        for (attempt in 0 until schedule.attempts) {
+            delay(schedule.delayBefore(attempt))
+            val client = AdbClient(host, port, key)
             try {
-                delay(delayTime)
                 client.connect()
-                break
+                return client
             } catch (e: Exception) {
-                if (
-                    attempt == maxAttempts ||
-                    e is CancellationException ||
-                    e is SocketTimeoutException
-                ) throw e
-                delayTime += 1000
+                client.close()
+                if (e is CancellationException) throw e
+                last = e
+                if (attempt < schedule.attempts - 1) {
+                    log?.invoke(
+                        "Port $port not ready (${e.message ?: e.javaClass.simpleName}); retrying..."
+                    )
+                }
             }
         }
+
+        throw last ?: IllegalStateException("Could not connect to ADB on port $port")
     }
 }

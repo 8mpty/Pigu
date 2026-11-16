@@ -29,6 +29,7 @@ import android.os.Looper;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -120,6 +121,7 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
     private final ShizukuClientManager clientManager;
     private final ShizukuConfigManager configManager;
     private final int managerAppId;
+    private volatile long lastPauseDenialLogAt;
 
     public ShizukuService() {
         super();
@@ -481,10 +483,11 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
 
                 if (flags != 0) {
                     list.add(pi);
-                } else if (pi.applicationInfo.metaData != null
-                        && pi.applicationInfo.metaData.getBoolean("moe.shizuku.client.V3_SUPPORT", false)
-                        && pi.requestedPermissions != null
+                } else if (pi.requestedPermissions != null
                         && ArraysKt.contains(pi.requestedPermissions, PERMISSION)) {
+                    // This is discovery, not an authorization decision. Include every app that
+                    // declares the Shizuku permission, including older clients that do not set
+                    // V3_SUPPORT, so the manager can explain which apps may need the companion.
                     list.add(pi);
                 }
             }
@@ -495,8 +498,42 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
 
     @Override
     public boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
-        //LOGGER.d("transact: code=%d, calling uid=%d", code, Binder.getCallingUid());
+        int callingUid = Binder.getCallingUid();
+        boolean isManager = UserHandleCompat.getAppId(callingUid) == managerAppId;
+
+        if (code == ServerConstants.BINDER_TRANSACTION_setAccessPaused) {
+            enforceManagerPermission("setAccessPaused");
+            data.enforceInterface(ShizukuApiConstants.BINDER_DESCRIPTOR);
+            boolean paused = data.readInt() != 0;
+            configManager.setAccessPaused(paused);
+            LOGGER.i("access paused: %s", Boolean.toString(paused));
+            reply.writeNoException();
+            return true;
+        }
+
+        if (code == ServerConstants.BINDER_TRANSACTION_isAccessPaused) {
+            enforceManagerPermission("isAccessPaused");
+            reply.writeNoException();
+            reply.writeInt(configManager.isAccessPaused() ? 1 : 0);
+            return true;
+        }
+
+        // The pause is a hard boundary for every client except the manager. It deliberately
+        // covers attachApplication, permission requests, user services, newProcess and
+        // transactRemote: those are all ways an app can reach privileged code.
+        if (!isManager && configManager.isAccessPaused()) {
+            long now = SystemClock.elapsedRealtime();
+            if (now - lastPauseDenialLogAt > 5000) {
+                lastPauseDenialLogAt = now;
+                LOGGER.w("denied transaction %d from uid %d because access is paused", code, callingUid);
+            }
+            throw new SecurityException("Shizuku access is paused");
+        }
+
         if (code == ServerConstants.BINDER_TRANSACTION_getApplications) {
+            // This transaction is manager-only. It used to be handled before the normal
+            // permission check, which let any attached client ask for the installed-app slice.
+            enforceManagerPermission("getApplications");
             data.enforceInterface(ShizukuApiConstants.BINDER_DESCRIPTOR);
             int userId = data.readInt();
             ParcelableListSlice<PackageInfo> result = getApplications(userId);

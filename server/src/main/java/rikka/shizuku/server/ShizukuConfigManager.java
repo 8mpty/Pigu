@@ -236,6 +236,24 @@ public class ShizukuConfigManager extends ConfigManager {
         }
     }
 
+    public boolean isAccessPaused() {
+        synchronized (this) {
+            return config.accessPaused;
+        }
+    }
+
+    public void setAccessPaused(boolean paused) {
+        synchronized (this) {
+            if (config.accessPaused == paused) {
+                return;
+            }
+            config.accessPaused = paused;
+            // This is a security state, not a convenience setting. Persist it before the manager
+            // can stop the server; the delayed writer would lose it on an immediate exit.
+            write(config);
+        }
+    }
+
     private void removeLocked(int uid) {
         ShizukuConfig.PackageEntry entry = findLocked(uid);
         if (entry == null) {
