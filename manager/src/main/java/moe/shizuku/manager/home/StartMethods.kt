@@ -39,38 +39,35 @@ object StartMethods {
         AdbSettings.enableDebugging(context)
 
         val adbEnabled = Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0)
-        if (adbEnabled == 0) {
-            if (AdbSettings.isDebuggingSettingsRestricted(context)) {
-                SettingsHelper.showDebuggingSettingsRestrictedDialog(context)
-            } else {
-                WadbEnableUsbDebuggingDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
-            }
-            return
-        }
-
         val tcpPort = EnvironmentUtils.getAdbTcpPort()
         val tcpMode = ShizukuSettings.getTcpMode()
 
-        // If ADB is NOT listening to a TCP port and the device doesn't support TLS, inform the user
-        if (tcpPort <= 0 && !EnvironmentUtils.isTlsSupported()) {
-            WadbNotEnabledDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
-        // If ADB IS NOT listening to a TCP port but the device supports TLS, let the Starter
-        // screen discover the mDNS port and show each step there.
-        } else if (tcpPort <= 0) {
-            startWirelessDiscovery(context)
-        // If ADB IS listening to a TCP port but the user wants to close it and use TLS instead,
-        // close the TCP port and then show the Starter screen's discovery output.
-        } else if (!tcpMode) {
-            scope.launch {
-                AdbStarter.stopTcp(context, tcpPort)
+        when (StartRoutePolicy.decide(adbEnabled, tcpPort, EnvironmentUtils.isTlsSupported(), tcpMode)) {
+            StartRoute.USB_DEBUGGING_OFF -> {
+                if (AdbSettings.isDebuggingSettingsRestricted(context)) {
+                    SettingsHelper.showDebuggingSettingsRestrictedDialog(context)
+                } else {
+                    WadbEnableUsbDebuggingDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
+                }
+            }
+            StartRoute.WIRELESS_DEBUGGING_UNAVAILABLE -> {
+                WadbNotEnabledDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
+            }
+            StartRoute.DISCOVER -> {
                 startWirelessDiscovery(context)
             }
-        // Otherwise ADB IS listening to a TCP port and the user wants to keep it open. Start Shizuku via TCP
-        } else {
-            val intent = Intent(context, StarterActivity::class.java).apply {
-                putExtra(StarterActivity.EXTRA_PORT, tcpPort)
+            StartRoute.STOP_TCP_AND_DISCOVER -> {
+                scope.launch {
+                    AdbStarter.stopTcp(context, tcpPort)
+                    startWirelessDiscovery(context)
+                }
             }
-            context.startActivity(intent)
+            StartRoute.DIRECT_PORT -> {
+                val intent = Intent(context, StarterActivity::class.java).apply {
+                    putExtra(StarterActivity.EXTRA_PORT, tcpPort)
+                }
+                context.startActivity(intent)
+            }
         }
     }
 

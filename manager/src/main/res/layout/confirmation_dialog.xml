@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<moe.shizuku.manager.authorization.ObscuredTouchLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="?android:dialogPreferredPadding"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:paddingVertical="?android:dialogPreferredPadding">
 
     <ImageView
         android:layout_width="24dp"
@@ -22,9 +23,36 @@
         android:gravity="center"
         android:padding="24dp"
         android:paddingTop="16dp"
+        android:paddingBottom="8dp"
         android:textColor="?android:textColorPrimary"
         android:textSize="20sp"
         tools:text="@string/permission_warning_template" />
+
+    <TextView
+        android:id="@+id/package_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="16dp"
+        android:textColor="?android:textColorSecondary"
+        android:textSize="14sp"
+        tools:text="com.example.application" />
+
+    <TextView
+        android:id="@+id/shared_uid_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="16dp"
+        android:textColor="?android:textColorSecondary"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:text="This also grants access to other apps with the same UID: com.example.shared"
+        tools:visibility="visible" />
 
     <TextView
         android:id="@android:id/button1"
@@ -36,4 +64,4 @@
         style="@style/GrantPermissionsButtons.Bottom"
         android:text="@string/grant_dialog_button_deny" />
 
-</LinearLayout>
+</moe.shizuku.manager.authorization.ObscuredTouchLayout>

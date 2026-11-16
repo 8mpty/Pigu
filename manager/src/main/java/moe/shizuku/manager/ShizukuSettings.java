@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.text.TextUtils;
+import android.util.Log;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -23,7 +24,9 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 public class ShizukuSettings {
 
     public static final String NAME = "settings";
+    private static final String SECRETS_NAME = "secrets";
     public static class Keys {
+        public static final String KEY_AUTH_TOKEN = "auth_token";
         public static final String KEY_START_ON_BOOT = "start_on_boot";
         public static final String KEY_WATCHDOG = "watchdog";
         public static final String KEY_TCP_MODE = "tcp_mode";
@@ -41,6 +44,7 @@ public class ShizukuSettings {
     }
 
     private static SharedPreferences sPreferences;
+    private static SharedPreferences sSecrets;
 
     public static SharedPreferences getPreferences() {
         return sPreferences;
@@ -71,9 +75,13 @@ public class ShizukuSettings {
     }
 
     public static void initialize(Context context) {
+        Context storageContext = getSettingsStorageContext(context);
         if (sPreferences == null) {
-            sPreferences = getSettingsStorageContext(context)
-                .getSharedPreferences(NAME, Context.MODE_PRIVATE);
+            sPreferences = storageContext.getSharedPreferences(NAME, Context.MODE_PRIVATE);
+        }
+        if (sSecrets == null) {
+            sSecrets = storageContext.getSharedPreferences(SECRETS_NAME, Context.MODE_PRIVATE);
+            migrateAuthToken();
         }
     }
 
@@ -104,17 +112,51 @@ public class ShizukuSettings {
         return getPreferences().getBoolean(Keys.KEY_AUTO_DISABLE_USB_DEBUGGING, false);
     }
     
-    public static String getAuthToken() {
-        String authToken = getPreferences().getString("auth_token", null);
+    /**
+     * The token lives in a separate preferences file so it is excluded from both the legacy
+     * full-backup descriptor and the Android 12+ data-extraction rules. Those rules include only
+     * settings.xml.
+     */
+    private static void migrateAuthToken() {
+        String legacyToken = sPreferences.getString(Keys.KEY_AUTH_TOKEN, null);
+        if (legacyToken == null) return;
+        if (legacyToken.isEmpty()) {
+            sPreferences.edit().remove(Keys.KEY_AUTH_TOKEN).commit();
+            return;
+        }
+
+        String existingToken = sSecrets.getString(Keys.KEY_AUTH_TOKEN, null);
+        if (existingToken == null || existingToken.isEmpty()) {
+            // Persist before removing the legacy copy so a crash in between cannot lose the token.
+            if (!sSecrets.edit().putString(Keys.KEY_AUTH_TOKEN, legacyToken).commit()) {
+                // Keep the legacy copy; the next launch will retry the migration.
+                return;
+            }
+        }
+        // Remove the legacy copy synchronously so it cannot be picked up by a backup that starts
+        // immediately after this migration.
+        sPreferences.edit().remove(Keys.KEY_AUTH_TOKEN).commit();
+    }
+
+    public static synchronized String getAuthToken() {
+        String authToken = sSecrets.getString(Keys.KEY_AUTH_TOKEN, null);
         if (authToken == null || authToken.isEmpty()) {
-            authToken = generateAuthToken();
+            authToken = generateAuthTokenLocked();
         }
         return authToken;
     }
 
-    public static String generateAuthToken() {
+    public static synchronized String generateAuthToken() {
+        return generateAuthTokenLocked();
+    }
+
+    private static String generateAuthTokenLocked() {
         String token = Token.generateToken();
-        getPreferences().edit().putString("auth_token", token).apply();
+        // The token is shown to the user and copied into automation intents. Persist it before
+        // returning so a process death cannot leave the UI and the stored token out of sync.
+        if (!sSecrets.edit().putString(Keys.KEY_AUTH_TOKEN, token).commit()) {
+            Log.w("ShizukuSettings", "Failed to persist the automation auth token");
+        }
         return token;
     }
 
@@ -143,13 +185,24 @@ public class ShizukuSettings {
     }
 
     public static void setWatchdog(Context context, boolean enable) {
+        // Persist the user's choice first. Starting/stopping a service is asynchronous, and the
+        // preference listener must not briefly show the opposite state.
+        setWatchdogPreference(enable);
         if (enable) {
             WatchdogService.start(context);
         } else {
             WatchdogService.stop(context);
         }
+    }
+
+    /**
+     * Writes the watchdog preference without starting or stopping the service.
+     *
+     * The service itself uses this only for an explicit stop, so a system kill or process death
+     * no longer silently turns the user's watchdog setting off.
+     */
+    public static void setWatchdogPreference(boolean enable) {
         getPreferences().edit().putBoolean(Keys.KEY_WATCHDOG, enable).apply();
-        return;
     }
 
     public static boolean getTcpMode() {

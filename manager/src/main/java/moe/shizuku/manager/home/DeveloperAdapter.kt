@@ -13,6 +13,7 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         private const val ID_AUTOMATION = 3L
         private const val ID_COMPANION = 4L
         private const val ID_DEVELOPER_GUIDE = 5L
+        private const val ID_DIAGNOSTICS = 6L
     }
 
     init {
@@ -29,6 +30,11 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
         addItem(CompanionViewHolder.CREATOR, companion, ID_COMPANION)
         addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
+        addItem(
+            DiagnosticsViewHolder.CREATOR,
+            DiagnosticsData(status, grantedCount, companion),
+            ID_DIAGNOSTICS,
+        )
         addItem(DeveloperGuideViewHolder.CREATOR, null, ID_DEVELOPER_GUIDE)
         notifyDataSetChanged()
     }

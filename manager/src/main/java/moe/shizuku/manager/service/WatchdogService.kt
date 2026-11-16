@@ -38,7 +38,9 @@ class WatchdogService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "ACTION_STOP_SERVICE") {
+        if (intent?.action == ACTION_STOP_SERVICE) {
+            // This is the only path that means the user asked to turn the watchdog off.
+            ShizukuSettings.setWatchdogPreference(false)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -60,7 +62,8 @@ class WatchdogService : Service() {
     override fun onDestroy() {
         ShizukuStateMachine.removeListener(stateListener)
         isRunning.set(false)
-        ShizukuSettings.setWatchdog(applicationContext, false)
+        // Do not write the preference here. onDestroy also runs when the system or the user swipes
+        // the app away; only an explicit stop should disable the watchdog.
         super.onDestroy()
     }
 
@@ -90,7 +93,7 @@ class WatchdogService : Service() {
         )
 
         val stopIntent = Intent(this, WatchdogService::class.java).apply {
-            action = "ACTION_STOP_SERVICE"
+            action = ACTION_STOP_SERVICE
         }
         val stopPendingIntent = PendingIntent.getService(
             this, 1, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -143,6 +146,7 @@ class WatchdogService : Service() {
 
     companion object {
         private const val TAG = "ShizukuWatchdog"
+        private const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
         private const val NOTIFICATION_ID_WATCHDOG = 1001
         private const val NOTIFICATION_ID_CRASH = 1002
         const val CRASH_CHANNEL_ID = "crash_reports"

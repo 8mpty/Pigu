@@ -3,15 +3,20 @@ package moe.shizuku.manager.authorization
 import android.app.Dialog
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.text.TextUtils
 import android.text.method.LinkMovementMethod
+import android.view.MotionEvent
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.TimeoutCancellationException
 import moe.shizuku.manager.Helps
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
@@ -28,6 +33,19 @@ import rikka.shizuku.ShizukuApiConstants.REQUEST_PERMISSION_REPLY_IS_ONETIME
 class RequestPermissionActivity : AppActivity() {
 
     private lateinit var dialog: Dialog
+    private lateinit var binding: ConfirmationDialogBinding
+    private val handler = Handler(Looper.getMainLooper())
+
+    private var answered = false
+
+    private val enableAnswerButtons = Runnable {
+        if (!isFinishing && !isDestroyed && ::binding.isInitialized) {
+            binding.button1.isEnabled = true
+            binding.button3.isEnabled = true
+            binding.button1.alpha = 1f
+            binding.button3.alpha = 1f
+        }
+    }
 
     private fun setResult(requestUid: Int, requestPid: Int, requestCode: Int, allowed: Boolean, onetime: Boolean) {
         val data = Bundle()
@@ -60,13 +78,14 @@ class RequestPermissionActivity : AppActivity() {
         try {
             dialog.show()
         } catch (ignored: Throwable) {
+            finish()
         }
         return false
     }
 
     private fun waitForBinder(): Boolean {
         return runBlocking {
-            try { 
+            try {
                 withTimeout(5000) {
                     ShizukuStateMachine.asFlow().first { it == ShizukuStateMachine.State.RUNNING }
                 }
@@ -78,44 +97,106 @@ class RequestPermissionActivity : AppActivity() {
         }
     }
 
+    private fun applicationInfo(): ApplicationInfo? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("applicationInfo", ApplicationInfo::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra("applicationInfo")
+        }
+    }
+
+    private fun answer(uid: Int, pid: Int, requestCode: Int, allowed: Boolean, onetime: Boolean) {
+        if (answered) return
+        answered = true
+        setResult(uid, pid, requestCode, allowed, onetime)
+        dialog.dismiss()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setFinishOnTouchOutside(false)
+        window.decorView.filterTouchesWhenObscured = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { window.setHideOverlayWindows(true) }
+        }
+
+        val uid = intent.getIntExtra("uid", -1)
+        val pid = intent.getIntExtra("pid", -1)
+        val requestCode = intent.getIntExtra("requestCode", -1)
+        val ai = applicationInfo()
+        val packages = if (uid > 0) {
+            runCatching { packageManager.getPackagesForUid(uid)?.toList() }.getOrNull()
+        } else {
+            null
+        }
+        val rawLabel = try {
+            ai?.loadLabel(packageManager)
+        } catch (e: Exception) {
+            null
+        }
+
+        val decision = PermissionRequestPolicy.evaluate(
+            uid = uid,
+            pid = pid,
+            packageName = ai?.packageName,
+            applicationUid = ai?.uid ?: -1,
+            packagesForUid = packages,
+            rawLabel = rawLabel,
+            fallbackLabel = ai?.packageName,
+        )
+
+        if (!decision.accepted) {
+            LOGGER.w("Permission request rejected: %s", decision.rejection)
+            if (uid > 0 && pid > 0 && requestCode >= 0) {
+                setResult(uid, pid, requestCode, allowed = false, onetime = true)
+            }
+            finish()
+            return
+        }
 
         if (!waitForBinder()) {
             finish()
             return
         }
 
-        val uid = intent.getIntExtra("uid", -1)
-        val pid = intent.getIntExtra("pid", -1)
-        val requestCode = intent.getIntExtra("requestCode", -1)
-        val ai = intent.getParcelableExtra<ApplicationInfo>("applicationInfo")
-        if (uid == -1 || pid == -1 || ai == null) {
-            finish()
-            return
-        }
         if (!checkSelfPermission()) {
             setResult(uid, pid, requestCode, allowed = false, onetime = true)
             return
         }
 
-        val label = try {
-            ai.loadLabel(packageManager)
-        } catch (e: Exception) {
-            ai.packageName
-        }
+        binding = ConfirmationDialogBinding.inflate(layoutInflater).apply {
+            title.text = HtmlCompat.fromHtml(
+                getString(
+                    R.string.permission_warning_template,
+                    TextUtils.htmlEncode(decision.label),
+                    getString(R.string.permission_group_description),
+                ),
+            )
+            packageName.text = decision.packageName
 
-        val binding = ConfirmationDialogBinding.inflate(layoutInflater).apply {
+            if (decision.sharedUidPackages.isEmpty()) {
+                sharedUidWarning.visibility = android.view.View.GONE
+            } else {
+                sharedUidWarning.visibility = android.view.View.VISIBLE
+                sharedUidWarning.text = getString(
+                    R.string.permission_shared_uid_warning,
+                    decision.sharedUidPackages.joinToString(", "),
+                )
+            }
+
+            // A tap that was already travelling when the prompt appeared must not answer it.
+            button1.isEnabled = false
+            button3.isEnabled = false
+            button1.alpha = 0.5f
+            button3.alpha = 0.5f
             button1.setOnClickListener {
-                setResult(uid, pid, requestCode, allowed = true, onetime = false)
-                dialog.dismiss()
+                answer(uid, pid, requestCode, allowed = true, onetime = false)
             }
             button3.setOnClickListener {
-                setResult(uid, pid, requestCode, allowed = false, onetime = true)
-                dialog.dismiss()
+                answer(uid, pid, requestCode, allowed = false, onetime = true)
             }
-            title.text = HtmlCompat.fromHtml(getString(R.string.permission_warning_template,
-                    label, getString(R.string.permission_group_description)))
         }
 
         dialog = MaterialAlertDialogBuilder(this)
@@ -124,6 +205,36 @@ class RequestPermissionActivity : AppActivity() {
                 .setOnDismissListener { finish() }
                 .create()
         dialog.setCanceledOnTouchOutside(false)
-        dialog.show()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Set this before the dialog window is added so the window manager applies it.
+            runCatching { dialog.window?.setHideOverlayWindows(true) }
+        }
+        dialog.setOnShowListener {
+            dialog.window?.decorView?.filterTouchesWhenObscured = true
+            handler.postDelayed(enableAnswerButtons, TAP_GRACE_MS)
+        }
+        try {
+            dialog.show()
+        } catch (e: Throwable) {
+            LOGGER.e(e, "show permission dialog")
+            setResult(uid, pid, requestCode, allowed = false, onetime = true)
+            finish()
+        }
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.flags and OBSCURED_MASK != 0) return true
+        return super.dispatchTouchEvent(event)
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacks(enableAnswerButtons)
+        super.onDestroy()
+    }
+
+    private companion object {
+        const val TAP_GRACE_MS = 500L
+        const val OBSCURED_MASK =
+            MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED
     }
 }

@@ -201,6 +201,9 @@
     <string name="settings_black_night_theme">Black night theme</string>
     <string name="settings_black_night_theme_summary">Use the pure black theme if night mode is enabled</string>
     <string name="developer_title">Developer</string>
+    <string name="home_diagnostics_title">Copy diagnostics</string>
+    <string name="home_diagnostics_description">Copy app, device, and service details for a bug report. The auth token, Wi-Fi name, IP addresses, and app list are never included.</string>
+    <string name="home_diagnostics_action">Tap to copy a snapshot</string>
     <string name="companion_title">Companion app</string>
     <string name="companion_summary_not_installed">Not installed · Tap to install</string>
     <string name="companion_summary_installed">Installed · %1$s</string>
@@ -299,6 +302,7 @@
     <string name="permission_label">access Shizuku</string>
     <string name="permission_description">Allow the app to use Shizuku.</string>
     <string name="permission_warning_template"><![CDATA[Allow <b>%1$s</b> to %2$s?]]></string>
+    <string name="permission_shared_uid_warning">This also grants access to other apps with the same UID: %1$s.</string>
     <string name="grant_dialog_button_allow_always">Allow all the time</string>
     <string name="grant_dialog_button_deny">"Deny"</string>
 

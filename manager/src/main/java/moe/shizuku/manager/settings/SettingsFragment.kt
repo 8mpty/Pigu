@@ -155,7 +155,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         }
 
         watchdogPreference.apply {
-            isChecked = ShizukuSettings.isWatchdogRunning()
+            isChecked = ShizukuSettings.getWatchdog()
 
             setOnPreferenceChangeListener { _, newValue ->
                 if (newValue is Boolean) {
@@ -299,7 +299,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         when (key) {
-            KEY_WATCHDOG -> watchdogPreference.isChecked = ShizukuSettings.isWatchdogRunning()
+            KEY_WATCHDOG -> watchdogPreference.isChecked = ShizukuSettings.getWatchdog()
             KEY_TCP_MODE, KEY_TCP_PORT -> if (::tcpModePreference.isInitialized) {
                 updateTcpModeSummary()
             }
