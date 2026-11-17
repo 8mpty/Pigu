@@ -86,12 +86,12 @@ object PiguDiagnostics {
         add("TCP mode", enabled(ShizukuSettings.getTcpMode()))
 
         add("Write secure settings", permission(context, android.Manifest.permission.WRITE_SECURE_SETTINGS))
-        if (Build.VERSION.SDK_INT >= 37) {
-            add("Local network access", permission(context, "android.permission.ACCESS_LOCAL_NETWORK"))
-        } else if (Build.VERSION.SDK_INT >= 36) {
-            add("Local network access", permission(context, android.Manifest.permission.NEARBY_WIFI_DEVICES))
+        val localNetworkPermission = LocalNetworkPermission.permissionForSdk()
+        if (localNetworkPermission != null) {
+            add("Local network permission", "${LocalNetworkPermission.name()} ($localNetworkPermission)")
+            add("Local network access", permission(context, localNetworkPermission))
         } else {
-            add("Local network access", "not applicable")
+            add("Local network access", "not required")
         }
         add("Notifications", enabled(NotificationManagerCompat.from(context).areNotificationsEnabled()))
         add(

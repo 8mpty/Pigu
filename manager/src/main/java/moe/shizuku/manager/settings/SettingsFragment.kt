@@ -28,10 +28,12 @@ import androidx.preference.*
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.CancellableContinuation
@@ -42,7 +44,10 @@ import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.SnackbarHelper
 import moe.shizuku.manager.app.ThemeHelper
+import moe.shizuku.manager.audit.AuditLogSheet
+import moe.shizuku.manager.authorization.AuthorizationManager
 import moe.shizuku.manager.databinding.DialogTcpModeBinding
+import moe.shizuku.manager.management.AccessActions
 import moe.shizuku.manager.ktx.isComponentEnabled
 import moe.shizuku.manager.ktx.setComponentEnabled
 import moe.shizuku.manager.receiver.BootCompleteReceiver
@@ -67,6 +72,8 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     private lateinit var startOnBootPreference: TwoStatePreference
     private lateinit var watchdogPreference: TwoStatePreference
     private lateinit var accessPausedPreference: TwoStatePreference
+    private lateinit var accessLogPreference: Preference
+    private lateinit var revokeAllGrantsPreference: Preference
     private lateinit var tcpModePreference: Preference
     private lateinit var autoDisableUsbDebuggingPreference: TwoStatePreference
     private lateinit var keepWirelessDebuggingPreference: TwoStatePreference
@@ -99,6 +106,8 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         startOnBootPreference = findPreference(KEY_START_ON_BOOT)!!
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
         accessPausedPreference = findPreference(KEY_ACCESS_PAUSED)!!
+        accessLogPreference = findPreference(KEY_ACCESS_LOG)!!
+        revokeAllGrantsPreference = findPreference(KEY_REVOKE_ALL_GRANTS)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
         autoDisableUsbDebuggingPreference = findPreference(KEY_AUTO_DISABLE_USB_DEBUGGING)!!
         keepWirelessDebuggingPreference = findPreference(KEY_KEEP_WIRELESS_DEBUGGING)!!
@@ -209,6 +218,16 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                 }
                 false
             }
+        }
+
+        accessLogPreference.setOnPreferenceClickListener {
+            AuditLogSheet.show(context) {}
+            true
+        }
+
+        revokeAllGrantsPreference.setOnPreferenceClickListener {
+            showRevokeAllGrants()
+            true
         }
 
         tcpModePreference.apply {
@@ -351,6 +370,81 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
         advancedCategory.isVisible =
             legacyPairingPreference.isVisible || phantomProcessControlPreference.isVisible
+    }
+
+    private fun showRevokeAllGrants() {
+        val context = requireContext()
+        if (!ShizukuStateMachine.isRunning()) {
+            Toast.makeText(context, R.string.settings_revoke_all_grants_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        revokeAllGrantsPreference.isEnabled = false
+        lifecycleScope.launch {
+            val targets = try {
+                withContext(Dispatchers.IO) {
+                    AuthorizationManager.getPackages(exclude = listOf(context.packageName))
+                        .mapNotNull { pi ->
+                            val uid = pi.applicationInfo?.uid ?: return@mapNotNull null
+                            if (AuthorizationManager.granted(pi.packageName, uid)) {
+                                pi.packageName to uid
+                            } else null
+                        }
+                }
+            } catch (tr: Throwable) {
+                revokeAllGrantsPreference.isEnabled = true
+                Toast.makeText(context, R.string.app_management_change_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            revokeAllGrantsPreference.isEnabled = true
+
+            if (targets.isEmpty()) {
+                Toast.makeText(context, R.string.settings_revoke_all_grants_none, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val message = resources.getQuantityString(
+                R.plurals.settings_revoke_all_grants_message,
+                targets.size,
+                targets.size,
+            )
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.settings_revoke_all_grants_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.settings_revoke_all_grants_action) { _, _ ->
+                    revokeAllGrants(context, targets)
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun revokeAllGrants(context: Context, targets: List<Pair<String, Int>>) {
+        revokeAllGrantsPreference.isEnabled = false
+        lifecycleScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) { AccessActions.setAll(context, targets, false) }
+            } catch (tr: Throwable) {
+                revokeAllGrantsPreference.isEnabled = true
+                Toast.makeText(context, R.string.app_management_change_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            revokeAllGrantsPreference.isEnabled = true
+
+            val message = if (result.failed == 0) {
+                resources.getQuantityString(
+                    R.plurals.settings_revoke_all_grants_done,
+                    result.succeeded,
+                    result.succeeded,
+                )
+            } else {
+                context.getString(
+                    R.string.settings_revoke_all_grants_partial,
+                    result.succeeded,
+                    result.failed,
+                )
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
@@ -598,7 +692,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             .setMessage(HtmlCompat.fromHtml(message))
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 applyChange()
-                ShizukuReceiverStarter.start(context, true)
+                ShizukuReceiverStarter.start(context, forceStart = true, allowMetered = true)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -661,7 +755,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             .setMessage(HtmlCompat.fromHtml(message))
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 applyChange()
-                ShizukuReceiverStarter.start(context, true)
+                ShizukuReceiverStarter.start(context, forceStart = true, allowMetered = true)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

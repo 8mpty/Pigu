@@ -20,7 +20,12 @@ import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.ShizukuStateMachine
 
 object AdbStarter {
-    suspend fun startAdb(context: Context, port: Int, log: ((String) -> Unit)? = null) {
+    suspend fun startAdb(
+        context: Context,
+        port: Int,
+        switchToTcpMode: Boolean = true,
+        log: ((String) -> Unit)? = null,
+    ) {
         suspend fun AdbClient.runCommand(cmd: String) {
             command(cmd) { log?.invoke(String(it)) }
         }
@@ -44,7 +49,7 @@ object AdbStarter {
                 val originalPort = port
                 val tcpMode = ShizukuSettings.getTcpMode()
                 val tcpPort = ShizukuSettings.getTcpPort()
-                if (tcpMode && activePort != tcpPort) {
+                if (switchToTcpMode && tcpMode && activePort != tcpPort) {
                     log?.invoke("Connecting on port $activePort...")
 
                     AdbClient("127.0.0.1", activePort, key).use { client ->

@@ -30,6 +30,7 @@ import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.*
 import moe.shizuku.manager.databinding.AdbPairDialogBinding
 import moe.shizuku.manager.starter.StarterActivity
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.SettingsPage
 import java.net.ConnectException
@@ -40,6 +41,7 @@ class AdbPairDialogFragment : DialogFragment() {
     private lateinit var binding: AdbPairDialogBinding
 
     private val viewModel: ViewModel by activityViewModels()
+    private var discoveryRequested = false
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val context = requireContext()
@@ -111,6 +113,8 @@ class AdbPairDialogFragment : DialogFragment() {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
+        ensureDiscovery()
+
         val context = requireContext()
         val inMultiScreenOrDisplay = (requireActivity().isInMultiWindowMode
                 || (requireActivity().window?.decorView?.display?.displayId ?: -1) > 0)
@@ -147,6 +151,23 @@ class AdbPairDialogFragment : DialogFragment() {
         }
     }
 
+    private fun ensureDiscovery() {
+        if (discoveryRequested) return
+        discoveryRequested = true
+        LocalNetworkPermission.request(requireActivity()) { granted ->
+            if (!granted) {
+                Toast.makeText(
+                    requireContext(),
+                    R.string.local_network_permission_denied,
+                    Toast.LENGTH_LONG,
+                ).show()
+                dismissAllowingStateLoss()
+                return@request
+            }
+            if (isAdded) viewModel.startDiscovery()
+        }
+    }
+
     fun show(fragmentManager: FragmentManager) {
         if (fragmentManager.isStateSaved) return
         show(fragmentManager, javaClass.simpleName)
@@ -176,7 +197,11 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
         _port.postValue(it.second)
     }
 
-    init {
+    private var discoveryStarted = false
+
+    fun startDiscovery() {
+        if (discoveryStarted) return
+        discoveryStarted = true
         adbMdns.start()
     }
 

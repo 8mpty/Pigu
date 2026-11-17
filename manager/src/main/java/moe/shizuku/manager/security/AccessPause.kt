@@ -54,7 +54,7 @@ object AccessPause {
         // stopped service should only clear the block, not start something the user did not ask
         // for.
         if (wasRunning && !Shizuku.pingBinder()) {
-            ShizukuReceiverStarter.start(context)
+            ShizukuReceiverStarter.start(context, allowMetered = true)
         }
 
         AuditLog.record(

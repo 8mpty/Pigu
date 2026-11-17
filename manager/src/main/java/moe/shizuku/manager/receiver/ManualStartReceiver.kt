@@ -17,6 +17,6 @@ class ManualStartReceiver : AuthenticatedReceiver() {
             AuditLog.Result.OK,
             detail = "broadcast",
         )
-        ShizukuReceiverStarter.start(context)
+        ShizukuReceiverStarter.start(context, allowMetered = true)
     }
 }

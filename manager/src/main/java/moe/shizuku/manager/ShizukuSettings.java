@@ -46,6 +46,10 @@ public class ShizukuSettings {
         public static final String KEY_USE_SYSTEM_COLOR = "use_system_color";
         public static final String KEY_LEGACY_PAIRING = "legacy_pairing";
         public static final String KEY_CATEGORY_ADVANCED = "category_advanced";
+        public static final String KEY_CATEGORY_ACCESS_CONTROL = "category_access_control";
+        public static final String KEY_ACCESS_LOG = "access_log";
+        public static final String KEY_REVOKE_ALL_GRANTS = "revoke_all_grants";
+        public static final String KEY_ONBOARDING_COMPLETED = "onboarding_completed";
         public static final String KEY_DEVELOPER_OPTIONS = "developer_options";
         public static final String KEY_ROOT_WARNING_ACKNOWLEDGED = "root_warning_acknowledged";
         public static final String KEY_LAST_WATCHDOG_RESTART = "last_watchdog_restart";
@@ -243,6 +247,15 @@ public class ShizukuSettings {
 
     public static void setRootWarningAcknowledged(boolean acknowledged) {
         sSecrets.edit().putBoolean(Keys.KEY_ROOT_WARNING_ACKNOWLEDGED, acknowledged).commit();
+    }
+
+    /** The first-run checklist is local to this install, like the root acknowledgement. */
+    public static boolean getOnboardingCompleted() {
+        return sSecrets.getBoolean(Keys.KEY_ONBOARDING_COMPLETED, false);
+    }
+
+    public static void setOnboardingCompleted(boolean completed) {
+        sSecrets.edit().putBoolean(Keys.KEY_ONBOARDING_COMPLETED, completed).commit();
     }
 
     /** Wall-clock time of the last watchdog-triggered restart, for the Service Doctor. */

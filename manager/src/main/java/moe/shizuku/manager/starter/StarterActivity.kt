@@ -35,6 +35,7 @@ import moe.shizuku.manager.adb.AdbMdns
 import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.AppBarActivity
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.RootWarning
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import moe.shizuku.manager.starter.StarterTranscript
@@ -52,6 +53,7 @@ class StarterActivity : AppBarActivity() {
     private val viewModel: ViewModel by viewModels()
 
     private lateinit var binding: StarterActivityBinding
+    private var localTcpPort = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,9 +91,16 @@ class StarterActivity : AppBarActivity() {
                     }
                 }
 
-                if (message != 0) {
+                val messageText: CharSequence? = when {
+                    localTcpPort > 0 &&
+                        (it.error is ConnectException || it.error is SocketTimeoutException) ->
+                        getString(R.string.local_tcp_connect_failed, localTcpPort)
+                    message != 0 -> getString(message)
+                    else -> null
+                }
+                if (messageText != null) {
                     MaterialAlertDialogBuilder(this)
-                        .setMessage(message)
+                        .setMessage(messageText)
                         .setPositiveButton(android.R.string.ok, null)
                         .show()
                 }
@@ -119,6 +128,8 @@ class StarterActivity : AppBarActivity() {
             }
             val port = intent.getIntExtra(EXTRA_PORT, 0)
             val discoverWireless = intent.getBooleanExtra(EXTRA_DISCOVER_WIRELESS, false)
+            val localTcp = intent.getBooleanExtra(EXTRA_LOCAL_TCP, false)
+            localTcpPort = if (localTcp) port else 0
 
             ShizukuSettings.setLastLaunchMode(
                 when {
@@ -130,7 +141,27 @@ class StarterActivity : AppBarActivity() {
             // A start from the UI is an explicit request, so it clears a previous deliberate
             // stop before the watchdog is allowed to treat the service as crashed.
             ShizukuSettings.setManuallyStopped(false)
-            viewModel.start(root, port, discoverWireless)
+            startService(root, port, discoverWireless, localTcp)
+        }
+    }
+
+    private fun startService(root: Boolean, port: Int, discoverWireless: Boolean, localTcp: Boolean) {
+        if (!discoverWireless || LocalNetworkPermission.isGranted(this)) {
+            viewModel.start(root, port, discoverWireless, localTcp)
+            return
+        }
+
+        LocalNetworkPermission.request(this) { granted ->
+            if (!granted) {
+                Toast.makeText(
+                    this,
+                    R.string.local_network_permission_denied,
+                    Toast.LENGTH_LONG,
+                ).show()
+                finish()
+                return@request
+            }
+            if (!isFinishing) viewModel.start(root, port, discoverWireless, localTcp)
         }
     }
 
@@ -139,6 +170,7 @@ class StarterActivity : AppBarActivity() {
         const val EXTRA_IS_ROOT = "$EXTRA.IS_ROOT"
         const val EXTRA_PORT = "$EXTRA.PORT"
         const val EXTRA_DISCOVER_WIRELESS = "$EXTRA.DISCOVER_WIRELESS"
+        const val EXTRA_LOCAL_TCP = "$EXTRA.LOCAL_TCP"
     }
 }
 
@@ -163,7 +195,7 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
 
     private var started = false
 
-    fun start(root: Boolean, port: Int, discoverWireless: Boolean) {
+    fun start(root: Boolean, port: Int, discoverWireless: Boolean, localTcp: Boolean = false) {
         if (started) return
         started = true
         StarterTranscript.begin(appContext)
@@ -178,7 +210,11 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
                     val actualPort =
                         if (discoverWireless && port == 0) discoverWirelessPort() else port
                     attemptedAdb = true
-                    AdbStarter.startAdb(appContext, actualPort) { log(it) }
+                    AdbStarter.startAdb(
+                        appContext,
+                        actualPort,
+                        switchToTcpMode = !localTcp,
+                    ) { log(it) }
                     Starter.waitForBinder { log(it) }
                     AdbStarter.finishWirelessStart(appContext, success = true)
                 } catch (e: Throwable) {

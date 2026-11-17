@@ -39,6 +39,7 @@ import moe.shizuku.manager.receiver.ShizukuReceiverStarter.updateNotification
 import moe.shizuku.manager.settings.BugReportDialogActivity
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.ShizukuStateMachine
 
 class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -70,6 +71,17 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val tcpPort = EnvironmentUtils.getAdbTcpPort()
             if (tcpPort > 0 && !ShizukuSettings.getTcpMode()) {
                 AdbStarter.stopTcp(applicationContext, tcpPort)
+            }
+
+            val requiresDiscovery = tcpPort <= 0 || EnvironmentUtils.isWifiRequired()
+            if (requiresDiscovery && !LocalNetworkPermission.isGranted(applicationContext)) {
+                // A worker cannot request a runtime permission. Do not start a discovery that
+                // Android will silently block; leave an actionable notification instead.
+                val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(ShizukuReceiverStarter.NOTIFICATION_ID)
+                ShizukuReceiverStarter.abandonStartRequest()
+                LocalNetworkPermission.showMissingNotification(applicationContext)
+                return Result.success()
             }
 
             val port = tcpPort.takeIf { !EnvironmentUtils.isWifiRequired() } ?: callbackFlow {
@@ -232,9 +244,10 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     companion object {
-        fun enqueue(context: Context) {
+        /** Manual starts may run on metered networks; background starts wait for Wi-Fi. */
+        fun enqueue(context: Context, allowMetered: Boolean = false) {
             val cb = Constraints.Builder()
-            if (EnvironmentUtils.isWifiRequired())
+            if (EnvironmentUtils.isWifiRequired() && !allowMetered)
                 cb.setRequiredNetworkType(NetworkType.UNMETERED)
             val constraints = cb.build()
 
@@ -248,6 +261,7 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 request
             )
         }
+
         const val CHANNEL_ID = "AdbStartWorker"
         const val NOTIFICATION_ID = 1448
     }

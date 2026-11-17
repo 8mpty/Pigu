@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
+import android.widget.Toast
 import android.view.MenuItem
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -18,6 +19,8 @@ import moe.shizuku.manager.app.SnackbarHelper
 import moe.shizuku.manager.databinding.HomeActivityBinding
 import moe.shizuku.manager.management.AppsViewModel
 import moe.shizuku.manager.settings.SettingsActivity
+import moe.shizuku.manager.security.AccessPause
+import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.core.ktx.unsafeLazy
@@ -115,10 +118,17 @@ abstract class HomeActivity : AppBarActivity() {
         recyclerView.addEdgeSpacing(top = edgeSpacingV, bottom = edgeSpacingV, left = edgeSpacingH, right = edgeSpacingH)
 
         ShizukuStateMachine.addListener(stateListener)
+
+        if (savedInstanceState == null) {
+            handleShortcutIntent(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        handleShortcutIntent(intent)
+
         intent?.let {
             val showDialog = it.getBooleanExtra(HomeActivity.EXTRA_SHOW_PAIRING_DIALOG, false)
             if (showDialog) showAccessibilityDialog()
@@ -141,6 +151,56 @@ abstract class HomeActivity : AppBarActivity() {
     override fun onPause() {
         super.onPause()
         SnackbarHelper.dismiss()
+    }
+
+    private fun handleShortcutIntent(intent: Intent?) {
+        when (intent?.action) {
+            ACTION_START_SERVICE -> {
+                intent.action = null
+                startFromShortcut()
+            }
+            ACTION_PAUSE_ACCESS -> {
+                intent.action = null
+                confirmPauseFromShortcut()
+            }
+        }
+    }
+
+    private fun startFromShortcut() {
+        if (ShizukuSettings.getAccessPaused()) {
+            Toast.makeText(this, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (ShizukuStateMachine.isRunning()) {
+            Toast.makeText(this, R.string.shortcut_service_already_running, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val root = ShizukuSettings.getLastLaunchMode() == ShizukuSettings.LaunchMethod.ROOT &&
+            EnvironmentUtils.isRooted()
+        if (root) {
+            StartMethods.startRoot(this)
+        } else {
+            StartMethods.startWireless(this, lifecycleScope)
+        }
+    }
+
+    private fun confirmPauseFromShortcut() {
+        if (ShizukuSettings.getAccessPaused()) {
+            Toast.makeText(this, R.string.settings_access_paused_already, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.settings_access_paused_dialog_title)
+            .setMessage(R.string.settings_access_paused_dialog_message)
+            .setPositiveButton(R.string.settings_access_paused_enable) { _, _ ->
+                AccessPause.pause(this)
+                homeModel.reload()
+                adapter.updateData()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showExitDialog(title: String, message: String) {
@@ -186,6 +246,9 @@ abstract class HomeActivity : AppBarActivity() {
     }
 
     companion object {
+        const val ACTION_START_SERVICE = "com.empty.pigu.action.START_SERVICE"
+        const val ACTION_PAUSE_ACCESS = "com.empty.pigu.action.PAUSE_ACCESS"
+
         const val EXTRA_SHOW_PAIRING_DIALOG = "show_pairing_dialog"
         const val EXTRA_START_SERVICE_VIA_WADB = "start_service_via_wadb"
     }

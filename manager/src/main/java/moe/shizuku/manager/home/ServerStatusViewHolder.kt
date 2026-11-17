@@ -13,6 +13,7 @@ import moe.shizuku.manager.databinding.HomeItemContainerBinding
 import moe.shizuku.manager.databinding.HomeServerStatusBinding
 import moe.shizuku.manager.model.ServiceStatus
 import moe.shizuku.manager.utils.ShizukuStateMachine
+import androidx.fragment.app.FragmentActivity
 import rikka.html.text.HtmlCompat
 import rikka.html.text.toHtml
 import rikka.recyclerview.BaseViewHolder
@@ -32,6 +33,11 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
     }
 
     init {
+        binding.buttonRestart.setOnClickListener {
+            val activity = it.context as? FragmentActivity ?: return@setOnClickListener
+            ServiceRestart.confirm(activity, data ?: return@setOnClickListener)
+        }
+
         binding.buttonStop.setOnClickListener {
             val context = it.context
             if (!ShizukuStateMachine.isRunning()) return@setOnClickListener
@@ -67,7 +73,7 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
             ).toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
             summaryView.text = context.getString(R.string.home_status_service_paused_summary)
             summaryView.visibility = View.VISIBLE
-            binding.buttonStop.isVisible = false
+            binding.statusActions.isVisible = false
             return
         }
 
@@ -101,6 +107,8 @@ class ServerStatusViewHolder(private val binding: HomeServerStatusBinding, root:
         }
         textView.text = title.toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
         summaryView.text = summary.toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE)
+        binding.statusActions.isVisible = ok
+        binding.buttonRestart.isVisible = ok
         binding.buttonStop.isVisible = ok
 
         if (TextUtils.isEmpty(summaryView.text)) {

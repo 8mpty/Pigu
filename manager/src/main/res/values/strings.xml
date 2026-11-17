@@ -8,6 +8,11 @@
     <string name="home_status_service_not_running">%1$s is not running</string>
     <string name="home_status_service_version">Version %2$s, %1$s</string>
     <string name="home_status_service_version_update"><![CDATA[Version %2$s, %1$s<br>Start again to update to version %3$s]]></string>
+    <string name="restart_service">Restart</string>
+    <string name="dialog_restart_service_title">Restart Pigu?</string>
+    <string name="dialog_restart_service_message">The service will stop and start again using the last working method. Apps lose access for a few seconds. This is the safe way to load a newer server after updating Pigu.</string>
+    <string name="dialog_restart_service_message_root">The root service will stop and start again. Every authorized app loses access for a few seconds.</string>
+    <string name="service_restart_started">Restarting Pigu…</string>
 
     <!-- Home - Adb -->
     <string name="home_adb_title"><![CDATA[Start by connecting to a computer]]></string>
@@ -108,6 +113,15 @@
     <string name="start_methods_title">Pairing methods</string>
     <string name="home_start_pair">Pair</string>
     <string name="start_wireless_summary">Start Shizuku over Wi-Fi using wireless debugging.</string>
+    <string name="start_local_tcp_title">Start over local TCP</string>
+    <string name="start_local_tcp_summary">Skip mDNS and connect directly to 127.0.0.1 on a port that adb is already listening on. No Wi-Fi needed, but the port must already be open.</string>
+    <string name="start_local_tcp_button">Enter port</string>
+    <string name="dialog_local_tcp_title">Start over local TCP</string>
+    <string name="dialog_local_tcp_message">This skips Wi-Fi and discovery. It only works if adb is already listening on this port — for example after running adb tcpip 5555 from a computer, or when TCP mode kept the port open.\n\nIf nothing is listening, the Starter screen reports a connection error instead of searching for wireless debugging.</string>
+    <string name="dialog_local_tcp_port">Port</string>
+    <string name="dialog_local_tcp_invalid">Port must be an integer from 1 to 65535.</string>
+    <string name="dialog_local_tcp_start">Start</string>
+    <string name="local_tcp_connect_failed">Could not connect to 127.0.0.1:%1$d.\n\nMake sure adb is already listening on that port. Connect by USB and run adb tcpip %1$d, or enable TCP mode before losing Wi-Fi. This action does not open the port for you.</string>
     <string name="start_adb_summary">Start Shizuku by running the adb command from a computer.</string>
     <string name="start_root_summary">Start Shizuku with root (Magisk, KernelSU, or similar).</string>
     <string name="start_root_unavailable">Root was not detected on this device.</string>
@@ -167,7 +181,47 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="qs_tile_label">Pigu access</string>
+    <string name="qs_tile_pause">Pause access</string>
+    <string name="qs_tile_resume">Resume access</string>
+    <string name="qs_tile_state_running">Running</string>
+    <string name="qs_tile_state_paused">Paused</string>
+    <string name="qs_tile_state_stopped">Stopped</string>
+    <string name="qs_tile_paused">App access paused</string>
+    <string name="qs_tile_resumed">App access resumed</string>
+    <string name="shortcut_start_service_short">Start service</string>
+    <string name="shortcut_start_service_long">Start Pigu service</string>
+    <string name="shortcut_app_management_short">App Management</string>
+    <string name="shortcut_app_management_long">Open App Management</string>
+    <string name="shortcut_developer_short">Developer</string>
+    <string name="shortcut_developer_long">Open Developer page</string>
+    <string name="shortcut_pause_short">Pause access</string>
+    <string name="shortcut_pause_long">Pause all app access</string>
+    <string name="shortcut_service_already_running">Pigu is already running.</string>
+    <string name="local_network_permission_denied">Local network access is required to find wireless debugging and pairing services. Allow it when prompted, or in Android settings.</string>
+    <string name="local_network_notification_channel">Local network access</string>
+    <string name="local_network_notification_title">Local network access is off</string>
+    <string name="local_network_notification_message">Pigu could not search for wireless debugging in the background. Tap to grant local network access, then start Pigu again.</string>
+    <string name="local_network_action_open">Open Pigu</string>
     <string name="settings_behavior">Behavior</string>
+    <string name="settings_access_control">Access control</string>
+    <string name="settings_access_log">Access log</string>
+    <string name="settings_access_log_summary">Review permission, grant, pause, and automation events. Local only.</string>
+    <string name="settings_revoke_all_grants">Revoke all app grants</string>
+    <string name="settings_revoke_all_grants_summary">Every app must request access again. The service keeps running.</string>
+    <string name="settings_revoke_all_grants_title">Revoke all app grants?</string>
+    <string name="settings_revoke_all_grants_action">Revoke all</string>
+    <string name="settings_revoke_all_grants_none">No app grants to revoke.</string>
+    <string name="settings_revoke_all_grants_unavailable">Start Pigu before changing app grants.</string>
+    <string name="settings_revoke_all_grants_partial">Revoked %1$d grants; %2$d could not be changed.</string>
+    <plurals name="settings_revoke_all_grants_message">
+        <item quantity="one">Revoke access from %1$d app? It must request permission again.</item>
+        <item quantity="other">Revoke access from all %1$d apps? They must request permission again.</item>
+    </plurals>
+    <plurals name="settings_revoke_all_grants_done">
+        <item quantity="one">Revoked %1$d app grant.</item>
+        <item quantity="other">Revoked %1$d app grants.</item>
+    </plurals>
     <string name="settings_networking_adb">Networking &amp; ADB</string>
     <string name="settings_start_on_boot">Start on boot</string>
     <string name="settings_start_on_boot_summary">Requires Android 11+ or root</string>
@@ -180,6 +234,7 @@
     <string name="settings_access_paused_dialog_title">Pause all app access?</string>
     <string name="settings_access_paused_dialog_message">Pigu will reject every app, stop the running service, and block the watchdog, boot, automation, and manual starts until you resume.\n\nApp grants are kept, so resuming does not ask for permission again. Apps will fail while Pigu is paused.</string>
     <string name="settings_access_paused_enable">Pause access</string>
+    <string name="settings_access_paused_already">Pigu is already paused.</string>
     <string name="settings_access_resume_dialog_title">Resume app access?</string>
     <string name="settings_access_resume_dialog_message">Pigu will clear the pause. If the service was running when you paused, it will try to start it again using the last start method.</string>
     <string name="settings_access_resume">Resume access</string>
@@ -507,6 +562,42 @@
     <string name="service_doctor_unknown_error">Unknown error</string>
     <string name="service_doctor_no_transcript">No transcript was saved for the last start.</string>
     <string name="service_doctor_transcript_title">Last start transcript</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_app_bar_title">Welcome to Pigu</string>
+    <string name="onboarding_title">Set up Pigu</string>
+    <string name="onboarding_intro">Pigu needs a few permissions to start reliably. You can skip this now and allow them later, when the app asks.</string>
+    <string name="onboarding_permissions_title">Permissions</string>
+    <string name="onboarding_notifications_title">Notifications</string>
+    <string name="onboarding_notifications_summary">Pairing and start failures use notifications, including the pairing code.</string>
+    <string name="onboarding_local_network_title">Local network</string>
+    <string name="onboarding_local_network_summary">Android 16 and 17 need this to discover wireless debugging. Without it, pairing may loop or fail.</string>
+    <string name="onboarding_battery_title">Battery optimization</string>
+    <string name="onboarding_battery_summary">Optional. Helps start-on-boot and the watchdog survive aggressive battery managers.</string>
+    <string name="onboarding_permissions_later">Skipping is safe: each permission is requested again at the point it is needed.</string>
+    <string name="onboarding_allow">Allow</string>
+    <string name="onboarding_open_settings">Open settings</string>
+    <string name="onboarding_status_allowed">Allowed</string>
+    <string name="onboarding_status_blocked">Not allowed</string>
+    <string name="onboarding_status_optional">Optional</string>
+    <string name="onboarding_notifications_blocked_hint">Notifications stay off. You can enable them later in Android settings.</string>
+    <string name="onboarding_permission_open_failed">Could not open the system permission screen.</string>
+    <string name="onboarding_start_heading">Three ways to start</string>
+    <string name="onboarding_start_intro">Choose the method that fits your device. You can change it later in Pairing methods.</string>
+    <string name="onboarding_start_wireless_title">Wireless debugging (recommended)</string>
+    <string name="onboarding_start_wireless_summary">On Android 11+, pair once and start from the phone. Android may ask for local network access.</string>
+    <string name="onboarding_start_adb_title">ADB from a computer</string>
+    <string name="onboarding_start_adb_summary">Enable USB debugging, connect once, and send the provided adb command. Needed on some TVs and older devices.</string>
+    <string name="onboarding_start_root_title">Root</string>
+    <string name="onboarding_start_root_summary">If Pigu detects root, it can start with Magisk, KernelSU, or similar. Authorized apps then run commands as root.</string>
+    <string name="onboarding_start_root_unavailable">Root was not detected on this device. You can still use wireless debugging or ADB.</string>
+    <string name="onboarding_companion_title">Companion app (optional)</string>
+    <string name="onboarding_companion_summary">Only needed when an app checks for the official Shizuku package. It does not provide the service; Pigu still does.</string>
+    <string name="onboarding_open_developer">Open Developer page</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_done">Done</string>
 
     <!-- Messages for legacy -->
     <string name="dialog_legacy_not_support_title">%1$s does not support modern Shizuku</string>

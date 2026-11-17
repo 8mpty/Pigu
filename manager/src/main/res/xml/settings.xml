@@ -21,10 +21,28 @@
             android:summary="@string/settings_watchdog_summary"
             android:title="@string/settings_watchdog" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="category_access_control"
+        android:title="@string/settings_access_control">
+
         <SwitchPreferenceCompat
             android:key="access_paused"
             android:summary="@string/settings_access_paused_summary"
             android:title="@string/settings_access_paused" />
+
+        <Preference
+            android:key="access_log"
+            android:persistent="false"
+            android:summary="@string/settings_access_log_summary"
+            android:title="@string/settings_access_log" />
+
+        <Preference
+            android:key="revoke_all_grants"
+            android:persistent="false"
+            android:summary="@string/settings_revoke_all_grants_summary"
+            android:title="@string/settings_revoke_all_grants" />
 
     </PreferenceCategory>
 

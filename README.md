@@ -19,15 +19,19 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 ## Features
 
 - **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root.
-- **Start / stop control** from the home screen, with a confirmation dialog when stopping.
+- **Start / stop / restart control** from the home screen: stop has a confirmation, and restart stops the old server before loading the new one.
+- **Quick Settings tile and long-press shortcuts** for pause/resume, starting the service, App Management, and the Developer page. The tile is a pause switch, never a kill-all-clients button.
 - **Global pause / kill switch** that stops the service, keeps app grants, and blocks every start path until resumed.
+- **Skippable first-run onboarding** for notifications, local-network access, battery optimization, the three start methods, and the optional companion.
+- **Access control settings category** for pause, the local access log, and a confirmed “revoke all app grants” action.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.
 - **Option to keep wireless debugging on** after connecting, with a warning about the security trade-off.
 - **Two-layer watchdog:** the manager restarts a dead service, and the server exits itself when its main thread hangs or a required system service disappears.
 - **Recovery guards:** deliberate stops are respected, duplicate starts are suppressed, and repeated failed restarts stop instead of looping forever.
 - **Start on boot**, waiting for Wi-Fi when needed.
 - **Hardened permission prompt** that validates the caller, blocks obscured taps, discloses shared UIDs, and ignores taps for 500 ms after it appears.
-- **Automation intents** for Tasker, MacroDroid, Automate, etc.
+- **Automation intents** for Tasker, MacroDroid, Automate, etc. Manual START may run over mobile data; boot and watchdog recovery still wait for an unmetered network.
+- **Start over local TCP** from Pairing methods: enter a port, skip mDNS, and connect to `127.0.0.1` if adb is already listening. No Wi-Fi or local-network permission is used, but the port must already be open.
 - **Copy diagnostics** and a **Service Doctor** checklist on the Developer page for privacy-conscious bug reports and common start failures.
 - **Local access log** of permission prompts, grants/revokes, pause/resume, automation starts/stops, and companion installs. It is a 400-entry ring buffer, stored only on the device, and excluded from backup.
 - **Root-mode warning** at the first root start and a persistent home banner while the service runs as root.
@@ -36,6 +40,7 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Optional phantom-process control** (Android 12+) with an explicit warning and a one-tap restore of Android's default.
 - **Android TV and VR support**, including D-Pad navigation and pairing without notifications.
 - **Android 17 / SDK 37 compatibility** inherited from the base fork.
+- **One local-network permission gate** for wireless discovery and pairing: API 36 asks for `NEARBY_WIFI_DEVICES`, API 37 asks for `ACCESS_LOCAL_NETWORK`, and the background worker posts an actionable notification instead of starting a blocked mDNS search.
 - **English-only UI**, with a choice between the system locale and English for formatting.
 - **Optional companion app** for apps that hard-code the official Shizuku package name.
 
@@ -102,6 +107,7 @@ Older Android versions keep the previous automatic behavior.
 - The access log is a local 400-entry ring buffer containing package names, UIDs, timestamps, and action results. It is excluded from cloud backup and device transfer, and can be cleared from the Developer page.
 - The last Starter transcript is stored in the app private files directory, excluded from backup. It can contain paths and ports, is never uploaded, and is only copied when the user taps **Copy** in the Service Doctor.
 - The root-warning acknowledgement is stored in the excluded `secrets` preferences file, so a restored backup does not suppress the warning on another device.
+- The first-run onboarding completion flag is stored in the same excluded `secrets` file. Onboarding collects no data; it only opens the system permission screens.
 - The optional phantom-process control changes one global Android setting (`settings_enable_monitor_phantom_procs`). It is off by default, warns before changing anything, verifies the result, and restores Android's default when turned off.
 - Only the permissions needed for the service, wireless pairing, and permission-prompt protection are declared.
 
@@ -291,9 +297,9 @@ The third phase adds the controls that need more than a manager-side preference:
 - Phantom-process control is a global platform workaround. It does not guarantee that Pigu survives an OEM battery manager, and Android may ignore or reset the setting after an update.
 - The wireless retry improvements do not add an endless mDNS hunt. If both the new and original ports fail, the user still has to re-pair or rediscover.
 
-### Phase 3 access visibility and diagnostics
+### Phase 3 access, setup, and diagnostics
 
-This pass is entirely manager-side; there are no server protocol changes. It adds accountability, safer app management, and a checklist for the environmental failures that make Pigu look broken.
+This pass is entirely manager-side; there are no server protocol changes. It adds accountability, safer app management, faster access through Quick Settings and shortcuts, a skippable setup flow, a single local-network permission gate, and a checklist for the environmental failures that make Pigu look broken.
 
 **Access log**
 
@@ -348,15 +354,63 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - **Copy diagnostics** is available from the Service Doctor toolbar.
 - The last Starter transcript is persisted in the app’s private files directory (capped at 64 KB) instead of being lost when the Starter screen closes. The Doctor can show and copy it. The transcript is local-only and can contain paths and ports, so it is not added to the diagnostics snapshot automatically.
 
+**Quick Settings, shortcuts, and restart**
+
+- A Quick Settings tile shows **Running**, **Paused**, or **Stopped** and toggles pause/resume. It never stops the service, so one accidental tap cannot kill every client app. Grants stay intact, and a second tap resumes.
+- Static long-press shortcuts: **Start service**, **App Management**, **Developer page**, and **Pause access**. Pause asks for confirmation; Start uses the last working method and falls back to wireless discovery.
+- The status card has a **Restart** action while the service is running. Restart is a deliberate stop followed by the last working start path: root and TCP starts are quick, while wireless starts open the Starter flow.
+- Restart is the supported way to replace a stale server after a Pigu update. It is not a hot swap; clients lose access for the few seconds between stop and start.
+- The Quick Settings label is refreshed when the panel opens and immediately after a tap. It does not run a live binder observer while the panel is closed.
+
+**Settings access control**
+
+- **Behavior** now contains only start-on-boot and the watchdog. Pause, the access log, and **Revoke all app grants** live in a new **Access control** category. **Networking & ADB** is unchanged.
+- **Revoke all app grants** lists every app that currently has a grant, shows the count in the confirmation, runs off the main thread, and records one bulk audit entry. It does not stop the service and does not revoke Pigu itself.
+- The action requires a running service; without one it explains why instead of failing with a binder error. There is no bulk undo, matching the App Management bulk-action policy.
+
+**First-run onboarding**
+
+- A short, skippable first-run screen requests **notifications**, the **local-network permission** where Android requires it, and offers the **battery-optimization exemption**. It then explains wireless debugging, ADB from a computer, root, and the optional companion.
+- Permissions are requested explicitly by the user, not sprayed automatically on launch. Every permission is also requested again at the point it is needed, so **Skip** never leaves a permanent silent failure.
+- Onboarding completion is stored in `secrets.xml`, excluded from backup, so another device gets its own setup pass.
+- If a permission is denied, onboarding stays usable, shows the blocked state, and the relevant runtime path explains the failure later.
+- The screen is intentionally text-and-buttons only; it uses the normal app theme, scrolls on small screens, and remains D-pad focusable on TV.
+
+**Central local-network permission gate**
+
+- `LocalNetworkPermission` is now the single SDK mapping and request helper: Android 17 (API 37) uses `ACCESS_LOCAL_NETWORK`, Android 16 (API 36) uses `NEARBY_WIFI_DEVICES`, and older releases need neither.
+- Activity paths request the permission and continue only after a grant: wireless Start, the ADB discovery dialog, the pairing dialog, the pairing tutorial, and the Starter discovery fallback. A denial stops discovery and shows an explanation instead of opening Android's device picker loop.
+- `AdbStartWorker` checks the same helper before mDNS. If the permission is missing it skips discovery, releases the start gate, and posts an actionable notification that opens **Pairing methods**; it does not retry a blocked search forever.
+- `PiguDiagnostics` uses the same mapping and reports `NEARBY_WIFI_DEVICES` on API 36 instead of “not applicable”; API 35 and below report that the permission is not required.
+- The activity request uses a headless fragment, so callers do not duplicate permission-result plumbing. If the requesting activity is destroyed while the system dialog is open, the original action is not resumed automatically; the next tap re-checks the permission.
+
+**Manual start over mobile data**
+
+- Manual and automation starts no longer inherit the old unconditional “wait for an unmetered network” rule. `AdbStartWorker` now takes an explicit `allowMetered` flag; `ManualStartReceiver`, the notification’s **Attempt now** action, and pause→resume pass `true`, while boot and watchdog recovery keep waiting for Wi-Fi.
+- This restores the behavior introduced by the earlier “intent only working on wifi” fix: a manual `START` intent may run over mobile data when no Wi-Fi network is available.
+- The worker still has to resolve the wireless-debugging port. Mobile carriers can block multicast, and Android 16/17 still requires the local-network permission, so the permission gate and the Starter timeout remain unchanged. If mDNS cannot resolve, the Starter screen reports the timeout instead of silently waiting.
+
+**Start over local TCP**
+
+- Pairing methods now has a **Start over local TCP** card. It opens a port dialog prefilled with Pigu’s configured TCP port and skips mDNS and the local-network permission path entirely.
+- The start uses `StarterActivity` with an exact-port flag, so Pigu connects to `127.0.0.1:<port>` and does not switch adbd to a different configured TCP port.
+- This only works if adb is already listening on that port. Typical ways to get there: run `adb tcpip 5555` while USB-connected, or keep TCP mode from an earlier wireless start. The action does **not** open the port or make it survive a reboot.
+- If nothing is listening, the normal connection dialog is replaced with a specific error naming the port and repeating the `adb tcpip` requirement. This is intentionally explicit, not an automatic fallback to discovery.
+- No mDNS, no port scan, no hidden retry: one connect attempt on the exact port the user confirms. No new JVM tests; the path is an activity/UI integration around the existing `AdbStarter`.
+
 **Tests and limits**
 
-- `:manager:testDebugUnitTest` now has **50** tests, including the App Management filter policy. The existing count was 46.
+- `:manager:testDebugUnitTest` now has **53** tests, including the App Management filter policy and the SDK 36/37 local-network mapping. The previous pass had 50.
 - The access log is local and clearable, but it is not tamper-proof and does not record callers that never reach the permission activity.
 - There is no persistent “Deny” state yet: the **Denied** filter combines “not currently granted” with “last request denied.” Adding remembered denial would change the permission flow and is a separate decision.
 - Root background starts now require one UI acknowledgement. This is a deliberate security trade-off, not an oversight.
 - The App Management bulk operations only touch the visible/filtered list, and undo is only offered for a single revoke.
-- No device was attached during this pass: the new sheets, chips, root banner, and Doctor actions compile and pass JVM tests, but their runtime layout and OEM behavior still need a device check.
-- Lint remains at the pre-existing baseline: 27 manager errors (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The new files do not add lint errors.
+- No device was attached during this pass: the new QS tile, shortcuts, onboarding, restart flow, sheets, chips, root banner, and Doctor actions compile and pass JVM tests, but their runtime layout and OEM behavior still need a device check.
+- The Quick Settings tile refreshes when the panel opens and after a tap; it does not keep a live binder observer while closed. The static shortcuts embed the `com.empty.pigu` application ID, so changing the application ID requires updating `res/xml/shortcuts.xml`.
+- Restart is a stop-then-start, not a hot swap. If the Starter screen is cancelled or the new start fails, the service stays stopped until the user starts it again.
+- Onboarding does not grant anything automatically. If notifications are denied, the worker still cannot post the local-network notification; the user must open Pigu and start from **Pairing methods**.
+- Lint has **26 manager errors** (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The changed files add no new lint errors; the new onboarding activity and layout are explicitly ignored for the known false positive.
+- API 35 and below do not require a local-network runtime permission. API 36 and 37 do; code degrades to a notification when a background path cannot request it.
 
 ### Removed
 

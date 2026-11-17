@@ -71,7 +71,21 @@ object ShizukuReceiverStarter {
             ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING
     }
 
-    fun start(context: Context, forceStart: Boolean = false) {
+    /** A worker that could not run discovery must not leave the start gate held. */
+    fun abandonStartRequest() {
+        startGate.release()
+    }
+
+    /**
+     * @param forceStart watchdog recovery, which must not clear a deliberate stop.
+     * @param allowMetered a manual/automation start may use mobile data; boot and watchdog
+     * wait for an unmetered network instead.
+     */
+    fun start(
+        context: Context,
+        forceStart: Boolean = false,
+        allowMetered: Boolean = false,
+    ) {
         // The global pause is a user decision, not a crash. It blocks the watchdog, boot,
         // automation and explicit starts alike until the user resumes from the pause card.
         if (ShizukuSettings.getAccessPaused()) {
@@ -101,7 +115,7 @@ object ShizukuReceiverStarter {
             "start requested: forceStart=$forceStart binderAlive=$binderAlive " +
                 "state=${ShizukuStateMachine.get()} storedMode=$storedMode mode=$mode " +
                 "user=${UserHandleCompat.myUserId()} tcpPort=${EnvironmentUtils.getAdbTcpPort()} " +
-                "tcpMode=${ShizukuSettings.getTcpMode()}"
+                "tcpMode=${ShizukuSettings.getTcpMode()} allowMetered=$allowMetered"
         )
 
         if (!forceStart && (UserHandleCompat.myUserId() > 0 || binderAlive)) {
@@ -134,8 +148,11 @@ object ShizukuReceiverStarter {
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)) {
             if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
                 try {
-                    AdbStartWorker.enqueue(context)
-                    updateNotification(context, WorkerState.AWAITING_WIFI)
+                    AdbStartWorker.enqueue(context, allowMetered)
+                    updateNotification(
+                        context,
+                        if (allowMetered) WorkerState.RUNNING else WorkerState.AWAITING_WIFI,
+                    )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to enqueue background start", e)
                     if (!forceStart) startGate.release()

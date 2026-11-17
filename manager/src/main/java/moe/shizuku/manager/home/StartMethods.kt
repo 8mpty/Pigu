@@ -19,6 +19,7 @@ import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.starter.StarterActivity
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.RootWarning
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.ShizukuStateMachine
@@ -28,7 +29,8 @@ import rikka.html.text.HtmlCompat
 
 object StartMethods {
 
-    fun startWireless(context: Context, scope: CoroutineScope) {
+    fun startWireless(activity: FragmentActivity, scope: CoroutineScope) {
+        val context = activity
         if (ShizukuSettings.getAccessPaused()) {
             Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
             return
@@ -59,12 +61,12 @@ object StartMethods {
                 WadbNotEnabledDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
             }
             StartRoute.DISCOVER -> {
-                startWirelessDiscovery(context)
+                startWirelessDiscovery(activity)
             }
             StartRoute.STOP_TCP_AND_DISCOVER -> {
                 scope.launch {
                     AdbStarter.stopTcp(context, tcpPort)
-                    startWirelessDiscovery(context)
+                    startWirelessDiscovery(activity)
                 }
             }
             StartRoute.DIRECT_PORT -> {
@@ -76,11 +78,45 @@ object StartMethods {
         }
     }
 
-    private fun startWirelessDiscovery(context: Context) {
-        AdbSettings.setWirelessDebuggingEnabled(context, true)
+    private fun startWirelessDiscovery(activity: FragmentActivity) {
+        LocalNetworkPermission.request(activity) { granted ->
+            if (!granted) {
+                Toast.makeText(
+                    activity,
+                    R.string.local_network_permission_denied,
+                    Toast.LENGTH_LONG,
+                ).show()
+                return@request
+            }
+
+            AdbSettings.setWirelessDebuggingEnabled(activity, true)
+            activity.startActivity(
+                Intent(activity, StarterActivity::class.java).apply {
+                    putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
+                }
+            )
+        }
+    }
+
+    fun startLocalTcp(context: Context, port: Int) {
+        if (ShizukuSettings.getAccessPaused()) {
+            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING) {
+            Toast.makeText(context, R.string.toast_shizuku_already_starting, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (ShizukuStateMachine.isRunning()) {
+            Toast.makeText(context, R.string.shortcut_service_already_running, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        context.sendBroadcast(Intent(context, NotifCancelReceiver::class.java))
         context.startActivity(
             Intent(context, StarterActivity::class.java).apply {
-                putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
+                putExtra(StarterActivity.EXTRA_PORT, port)
+                putExtra(StarterActivity.EXTRA_LOCAL_TCP, true)
             }
         )
     }

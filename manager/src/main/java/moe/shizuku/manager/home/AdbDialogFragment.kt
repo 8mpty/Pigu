@@ -6,6 +6,7 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
@@ -18,6 +19,7 @@ import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.databinding.AdbDialogBinding
 import moe.shizuku.manager.starter.StarterActivity
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.SettingsPage
 
 @RequiresApi(Build.VERSION_CODES.R)
@@ -52,9 +54,17 @@ class AdbDialogFragment : DialogFragment() {
     }
 
     private fun onDialogShow(dialog: AlertDialog) {
-        adbMdns.start()
         val context = dialog.context
         AdbSettings.setWirelessDebuggingEnabled(context, true)
+        LocalNetworkPermission.request(requireActivity()) { granted ->
+            if (!isAdded) return@request
+            if (!granted) {
+                Toast.makeText(context, R.string.local_network_permission_denied, Toast.LENGTH_LONG).show()
+                dismissAllowingStateLoss()
+                return@request
+            }
+            adbMdns.start()
+        }
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             SettingsPage.Developer.HighlightWirelessDebugging.launch(context)
