@@ -19,6 +19,7 @@ import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.starter.StarterActivity
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.RootWarning
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.core.content.asActivity
@@ -133,14 +134,6 @@ object StartMethods {
     }
 
     fun startRoot(context: Context) {
-        if (ShizukuSettings.getAccessPaused()) {
-            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
-            return
-        }
-        context.startActivity(
-            Intent(context, StarterActivity::class.java).apply {
-                putExtra(StarterActivity.EXTRA_IS_ROOT, true)
-            }
-        )
+        RootWarning.startRoot(context)
     }
 }

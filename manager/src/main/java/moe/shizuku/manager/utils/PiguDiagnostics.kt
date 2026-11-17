@@ -10,6 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import moe.shizuku.manager.BuildConfig
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.model.ServiceStatus
+import moe.shizuku.manager.starter.StarterTranscript
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -65,6 +66,12 @@ object PiguDiagnostics {
         add("Start on boot", enabled(ShizukuSettings.getStartOnBoot(context)))
         add("Watchdog preference", enabled(ShizukuSettings.getWatchdog()))
         add("Watchdog service running", ShizukuSettings.isWatchdogRunning())
+        add(
+            "Last watchdog restart",
+            ShizukuSettings.getLastWatchdogRestart().takeIf { it > 0L }?.let {
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(it))
+            } ?: "never",
+        )
         add("Phantom process control", enabled(ShizukuSettings.getPhantomProcessControl()))
 
         add("USB debugging", globalBoolean(context, Settings.Global.ADB_ENABLED))
@@ -81,6 +88,8 @@ object PiguDiagnostics {
         add("Write secure settings", permission(context, android.Manifest.permission.WRITE_SECURE_SETTINGS))
         if (Build.VERSION.SDK_INT >= 37) {
             add("Local network access", permission(context, "android.permission.ACCESS_LOCAL_NETWORK"))
+        } else if (Build.VERSION.SDK_INT >= 36) {
+            add("Local network access", permission(context, android.Manifest.permission.NEARBY_WIFI_DEVICES))
         } else {
             add("Local network access", "not applicable")
         }
@@ -105,6 +114,18 @@ object PiguDiagnostics {
                 !companion.installed -> "not installed"
                 companion.signedByPigu -> "installed, Pigu signature, version ${companion.versionName ?: "unknown"}"
                 else -> "installed, different signature, version ${companion.versionName ?: "unknown"}"
+            },
+        )
+        val lastStart = StarterTranscript.last(context)
+        add(
+            "Last start",
+            if (lastStart == null) {
+                "none recorded"
+            } else {
+                val state = if (lastStart.success) "success" else "failure"
+                val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US)
+                    .format(Date(lastStart.timestamp))
+                "$state at $time"
             },
         )
         add(

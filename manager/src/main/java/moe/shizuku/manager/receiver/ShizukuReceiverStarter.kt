@@ -22,6 +22,7 @@ import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.ShizukuSettings.LaunchMethod
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.RootWarning
 import moe.shizuku.manager.utils.SettingsPage
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import moe.shizuku.manager.utils.UserHandleCompat
@@ -35,6 +36,7 @@ object ShizukuReceiverStarter {
     const val NOTIFICATION_ID = 1447
     private const val NOTIFICATION_ID_UNSUPPORTED = 1449
     private const val NOTIFICATION_ID_DEBUGGING_RESTRICTED = 1451
+    private const val NOTIFICATION_ID_ROOT_WARNING = 1452
     private const val CHANNEL_ID = "AdbStartWorker"
     private const val MAX_START_IN_FLIGHT_MS = 3 * 60_000L
 
@@ -119,6 +121,14 @@ object ShizukuReceiverStarter {
         }
 
         if (mode == LaunchMethod.ROOT) {
+            // Automation and boot cannot show the root explanation. Do not start root mode
+            // until the user has acknowledged it in the app.
+            if (!RootWarning.isAcknowledged()) {
+                Log.w(TAG, "root start blocked until the root warning is acknowledged")
+                if (!forceStart) startGate.release()
+                showRootWarningNotification(context)
+                return
+            }
             if (!rootStart(context) && !forceStart) startGate.release()
         } else if ((mode == LaunchMethod.ADB || mode == LaunchMethod.WIRELESS_ADB) &&
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)) {
@@ -271,6 +281,37 @@ object ShizukuReceiverStarter {
             ShizukuStateMachine.update()
             false
         }
+    }
+
+    private fun showRootWarningNotification(context: Context) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.wadb_notification_title),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(channel)
+
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pendingLaunchIntent = PendingIntent.getActivity(
+            context, 0, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_warning_24)
+            .setContentTitle(context.getString(R.string.root_warning_notification_title))
+            .setContentText(context.getString(R.string.root_warning_notification_message))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(context.getString(R.string.root_warning_notification_message))
+            )
+            .setAutoCancel(true)
+            .setContentIntent(pendingLaunchIntent)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_ROOT_WARNING, notification)
     }
 
     private fun showPermissionErrorNotification(context: Context) {

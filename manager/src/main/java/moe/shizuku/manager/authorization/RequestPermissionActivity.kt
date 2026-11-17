@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeout
 import moe.shizuku.manager.Helps
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
+import moe.shizuku.manager.audit.AuditLog
 import moe.shizuku.manager.databinding.ConfirmationDialogBinding
 import moe.shizuku.manager.ktx.toHtml
 import moe.shizuku.manager.utils.Logger.LOGGER
@@ -37,6 +38,9 @@ class RequestPermissionActivity : AppActivity() {
     private val handler = Handler(Looper.getMainLooper())
 
     private var answered = false
+    private var auditShown = false
+    private var auditPackage: String? = null
+    private var auditUid: Int = -1
 
     private val enableAnswerButtons = Runnable {
         if (!isFinishing && !isDestroyed && ::binding.isInitialized) {
@@ -109,6 +113,14 @@ class RequestPermissionActivity : AppActivity() {
     private fun answer(uid: Int, pid: Int, requestCode: Int, allowed: Boolean, onetime: Boolean) {
         if (answered) return
         answered = true
+        AuditLog.record(
+            this,
+            AuditLog.Action.PERMISSION,
+            if (allowed) AuditLog.Result.ALLOWED else AuditLog.Result.DENIED,
+            auditPackage,
+            auditUid.takeIf { it > 0 } ?: uid,
+            detail = "prompt",
+        )
         setResult(uid, pid, requestCode, allowed, onetime)
         dialog.dismiss()
     }
@@ -147,8 +159,19 @@ class RequestPermissionActivity : AppActivity() {
             fallbackLabel = ai?.packageName,
         )
 
+        auditUid = uid
+        auditPackage = decision.packageName.takeIf { it.isNotEmpty() } ?: ai?.packageName
+
         if (!decision.accepted) {
             LOGGER.w("Permission request rejected: %s", decision.rejection)
+            AuditLog.record(
+                this,
+                AuditLog.Action.PERMISSION,
+                AuditLog.Result.DENIED,
+                auditPackage,
+                uid.takeIf { it > 0 },
+                detail = "rejected: ${decision.rejection}",
+            )
             if (uid > 0 && pid > 0 && requestCode >= 0) {
                 setResult(uid, pid, requestCode, allowed = false, onetime = true)
             }
@@ -157,11 +180,27 @@ class RequestPermissionActivity : AppActivity() {
         }
 
         if (!waitForBinder()) {
+            AuditLog.record(
+                this,
+                AuditLog.Action.PERMISSION,
+                AuditLog.Result.DENIED,
+                auditPackage,
+                uid.takeIf { it > 0 },
+                detail = "server unavailable",
+            )
             finish()
             return
         }
 
         if (!checkSelfPermission()) {
+            AuditLog.record(
+                this,
+                AuditLog.Action.PERMISSION,
+                AuditLog.Result.DENIED,
+                auditPackage,
+                uid.takeIf { it > 0 },
+                detail = "manager cannot grant runtime permissions",
+            )
             setResult(uid, pid, requestCode, allowed = false, onetime = true)
             return
         }
@@ -211,12 +250,31 @@ class RequestPermissionActivity : AppActivity() {
         }
         dialog.setOnShowListener {
             dialog.window?.decorView?.filterTouchesWhenObscured = true
+            if (!auditShown) {
+                auditShown = true
+                AuditLog.record(
+                    this,
+                    AuditLog.Action.PERMISSION,
+                    AuditLog.Result.SHOWN,
+                    auditPackage,
+                    auditUid.takeIf { it > 0 },
+                    detail = "prompt",
+                )
+            }
             handler.postDelayed(enableAnswerButtons, TAP_GRACE_MS)
         }
         try {
             dialog.show()
         } catch (e: Throwable) {
             LOGGER.e(e, "show permission dialog")
+            AuditLog.record(
+                this,
+                AuditLog.Action.PERMISSION,
+                AuditLog.Result.DENIED,
+                auditPackage,
+                auditUid.takeIf { it > 0 },
+                detail = "dialog failed",
+            )
             setResult(uid, pid, requestCode, allowed = false, onetime = true)
             finish()
         }

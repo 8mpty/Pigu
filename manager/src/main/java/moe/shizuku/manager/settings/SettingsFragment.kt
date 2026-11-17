@@ -186,7 +186,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                             .setTitle(R.string.settings_access_paused_dialog_title)
                             .setMessage(R.string.settings_access_paused_dialog_message)
                             .setPositiveButton(R.string.settings_access_paused_enable) { _, _ ->
-                                AccessPause.pause()
+                                AccessPause.pause(context)
                                 isChecked = true
                             }
                             .setNegativeButton(android.R.string.cancel) { _, _ ->

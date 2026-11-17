@@ -35,7 +35,9 @@ import moe.shizuku.manager.adb.AdbMdns
 import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.AppBarActivity
+import moe.shizuku.manager.utils.RootWarning
 import moe.shizuku.manager.utils.ShizukuStateMachine
+import moe.shizuku.manager.starter.StarterTranscript
 import moe.shizuku.manager.databinding.StarterActivityBinding
 import rikka.core.util.ClipboardUtils
 import rikka.lifecycle.Resource
@@ -110,6 +112,11 @@ class StarterActivity : AppBarActivity() {
                 return
             }
             val root = intent.getBooleanExtra(EXTRA_IS_ROOT, false)
+            if (root && !RootWarning.isAcknowledged()) {
+                Toast.makeText(this, R.string.root_warning_background_blocked, Toast.LENGTH_LONG).show()
+                finish()
+                return
+            }
             val port = intent.getIntExtra(EXTRA_PORT, 0)
             val discoverWireless = intent.getBooleanExtra(EXTRA_DISCOVER_WIRELESS, false)
 
@@ -147,6 +154,11 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
     private val handler = CoroutineExceptionHandler { _, throwable ->
         ShizukuStateMachine.update()
         log(error = throwable)
+        StarterTranscript.finish(
+            appContext,
+            success = false,
+            message = throwable.message ?: throwable.javaClass.simpleName,
+        )
     }
 
     private var started = false
@@ -154,6 +166,7 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
     fun start(root: Boolean, port: Int, discoverWireless: Boolean) {
         if (started) return
         started = true
+        StarterTranscript.begin(appContext)
 
         viewModelScope.launch(handler) {
             if (root) {
@@ -177,6 +190,11 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
                     throw e
                 }
             }
+            StarterTranscript.finish(
+                appContext,
+                success = true,
+                message = Starter.serviceStartedMessage,
+            )
         }
     }
 
@@ -218,8 +236,14 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun log(line: String? = null, error: Throwable? = null) {
-        line?.let { sb.appendLine(it) }
-        error?.let { sb.appendLine().appendLine(Log.getStackTraceString(it)) }
+        line?.let {
+            sb.appendLine(it)
+            StarterTranscript.append(appContext, it)
+        }
+        error?.let {
+            sb.appendLine().appendLine(Log.getStackTraceString(it))
+            StarterTranscript.append(appContext, Log.getStackTraceString(it))
+        }
 
         if (error == null) _output.postValue(Resource.success(sb))
         else _output.postValue(Resource.error(error, sb))

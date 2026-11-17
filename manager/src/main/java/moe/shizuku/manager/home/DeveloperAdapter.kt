@@ -15,6 +15,8 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         private const val ID_COMPANION = 4L
         private const val ID_DEVELOPER_GUIDE = 5L
         private const val ID_DIAGNOSTICS = 6L
+        private const val ID_AUDIT_LOG = 7L
+        private const val ID_SERVICE_DOCTOR = 8L
     }
 
     init {
@@ -29,12 +31,16 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         status: ServiceStatus,
         summary: AppDiscoverySummary,
         companion: CompanionApp.Status,
+        auditCount: Int,
+        onAuditChanged: () -> Unit,
     ) {
         clear()
         addItem(ManageAppsViewHolder.CREATOR, ManageAppsData(status, summary), ID_APPS)
         addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
         addItem(CompanionViewHolder.CREATOR, companion, ID_COMPANION)
         addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
+        addItem(ServiceDoctorViewHolder.CREATOR, null, ID_SERVICE_DOCTOR)
+        addItem(AuditLogViewHolder.CREATOR, AuditLogData(auditCount, onAuditChanged), ID_AUDIT_LOG)
         addItem(
             DiagnosticsViewHolder.CREATOR,
             DiagnosticsData(status, summary.authorized, companion),

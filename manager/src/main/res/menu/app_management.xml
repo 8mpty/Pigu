@@ -2,6 +2,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
+        android:id="@+id/action_search"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="@string/app_management_search"
+        android:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_sort"
+        android:title="@string/app_management_sort_title"
+        android:showAsAction="never" />
+
+    <item
         android:id="@+id/action_companion_info"
         android:icon="@drawable/ic_outline_info_24"
         android:title="@string/app_management_companion_info_title"

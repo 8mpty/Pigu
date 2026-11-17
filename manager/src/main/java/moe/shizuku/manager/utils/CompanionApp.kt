@@ -45,7 +45,15 @@ object CompanionApp {
         return Status(true, info.versionName, sameSignature, label, icon)
     }
 
-    fun isInstalled(context: Context): Boolean = status(context).installed
+    /**
+     * A usable companion is the official package name *and* Pigu's signing certificate. Another
+     * app can own the package name, but it must not suppress the compatibility hints or be
+     * treated as the companion.
+     */
+    fun isInstalled(context: Context): Boolean {
+        val status = status(context)
+        return status.installed && status.signedByPigu
+    }
 
     fun openAppInfo(context: Context) {
         val intent = Intent(

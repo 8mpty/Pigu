@@ -9,6 +9,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.shizuku.manager.R
+import moe.shizuku.manager.audit.AuditLog
 import moe.shizuku.server.IRemoteProcess
 import moe.shizuku.server.IShizukuService
 import rikka.shizuku.Shizuku
@@ -38,15 +39,31 @@ object CompanionInstaller {
             val status = CompanionApp.status(context)
             if (status.installed && !status.signedByPigu) {
                 return@withContext Result.Failure(context.getString(R.string.companion_install_conflict))
+                    .also {
+                        AuditLog.record(
+                            context,
+                            AuditLog.Action.COMPANION,
+                            AuditLog.Result.CONFLICT,
+                            detail = "different signature",
+                        )
+                    }
             }
 
             val bytes = try {
                 context.assets.open(ASSET).use { it.readBytes() }
             } catch (e: Exception) {
                 return@withContext Result.Failure(context.getString(R.string.companion_install_asset_missing))
+                    .also {
+                        AuditLog.record(
+                            context,
+                            AuditLog.Action.COMPANION,
+                            AuditLog.Result.FAILED,
+                            detail = "asset missing",
+                        )
+                    }
             }
 
-            if (Shizuku.pingBinder()) {
+            val result = if (Shizuku.pingBinder()) {
                 val output = installWithShizuku(bytes)
                 when {
                     output.contains("EXIT:0") -> Result.Success
@@ -58,6 +75,8 @@ object CompanionInstaller {
             } else {
                 openSystemInstaller(context, bytes)
             }
+            auditResult(context, result, "in-app")
+            result
         }
 
     suspend fun installWithSystemInstaller(context: Context): Result =
@@ -65,10 +84,27 @@ object CompanionInstaller {
             val bytes = try {
                 context.assets.open(ASSET).use { it.readBytes() }
             } catch (e: Exception) {
-                return@withContext Result.Failure(context.getString(R.string.companion_install_asset_missing))
+                val result = Result.Failure(context.getString(R.string.companion_install_asset_missing))
+                auditResult(context, result, "system installer")
+                return@withContext result
             }
-            openSystemInstaller(context, bytes)
+            val result = openSystemInstaller(context, bytes)
+            auditResult(context, result, "system installer")
+            result
         }
+
+    private fun auditResult(context: Context, result: Result, path: String) {
+        val auditResult = when (result) {
+            is Result.Success, is Result.SystemInstallerOpened -> AuditLog.Result.OK
+            is Result.Failure -> AuditLog.Result.FAILED
+        }
+        val detail = when (result) {
+            is Result.Success -> "$path; installed"
+            is Result.SystemInstallerOpened -> "$path; installer opened"
+            is Result.Failure -> "$path; ${result.message.take(160)}"
+        }
+        AuditLog.record(context, AuditLog.Action.COMPANION, auditResult, detail = detail)
+    }
 
     @Suppress("DEPRECATION")
     private fun installWithShizuku(bytes: ByteArray): String {

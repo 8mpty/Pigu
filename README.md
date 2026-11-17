@@ -28,8 +28,11 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Start on boot**, waiting for Wi-Fi when needed.
 - **Hardened permission prompt** that validates the caller, blocks obscured taps, discloses shared UIDs, and ignores taps for 500 ms after it appears.
 - **Automation intents** for Tasker, MacroDroid, Automate, etc.
-- **Copy diagnostics** on the Developer page for privacy-conscious bug reports.
+- **Copy diagnostics** and a **Service Doctor** checklist on the Developer page for privacy-conscious bug reports and common start failures.
+- **Local access log** of permission prompts, grants/revokes, pause/resume, automation starts/stops, and companion installs. It is a 400-entry ring buffer, stored only on the device, and excluded from backup.
+- **Root-mode warning** at the first root start and a persistent home banner while the service runs as root.
 - **App discovery** that lists every app declaring the Shizuku permission, with a per-app hint when an older client may need the companion.
+- **App Management search, filters, sorting and per-app details** (UID/user, version, client type, last request, access toggle, open app and app info).
 - **Optional phantom-process control** (Android 12+) with an explicit warning and a one-tap restore of Android's default.
 - **Android TV and VR support**, including D-Pad navigation and pairing without notifications.
 - **Android 17 / SDK 37 compatibility** inherited from the base fork.
@@ -95,7 +98,10 @@ Older Android versions keep the previous automatic behavior.
 - Internet access is only used for wireless debugging connections.
 - No update checker; updates are installed manually.
 - The automation auth token is stored in a separate `secrets` preferences file that is excluded from cloud backup and device transfer. Existing tokens are migrated without being regenerated.
-- The diagnostics snapshot contains app, device, and service state only. It never includes the auth token, Wi-Fi names, IP addresses, or app lists.
+- The diagnostics snapshot contains app, device, and service state only. It never includes the auth token, Wi-Fi names, IP addresses, app lists, or the Starter transcript.
+- The access log is a local 400-entry ring buffer containing package names, UIDs, timestamps, and action results. It is excluded from cloud backup and device transfer, and can be cleared from the Developer page.
+- The last Starter transcript is stored in the app private files directory, excluded from backup. It can contain paths and ports, is never uploaded, and is only copied when the user taps **Copy** in the Service Doctor.
+- The root-warning acknowledgement is stored in the excluded `secrets` preferences file, so a restored backup does not suppress the warning on another device.
 - The optional phantom-process control changes one global Android setting (`settings_enable_monitor_phantom_procs`). It is off by default, warns before changing anything, verifies the result, and restores Android's default when turned off.
 - Only the permissions needed for the service, wireless pairing, and permission-prompt protection are declared.
 
@@ -165,7 +171,7 @@ Run the JVM unit tests for the pure decisions:
 ./gradlew :manager:testDebugUnitTest
 ```
 
-They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, the duplicate-start gate, the wireless port retry schedule, and app-discovery companion counts. These are plain JVM tests; they do not need a device or the Shizuku service.
+They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, the duplicate-start gate, the wireless port retry schedule, app-discovery companion counts, and the App Management filter policy. The suite currently has 50 tests. These are plain JVM tests; they do not need a device or the Shizuku service.
 
 ## What changed in this fork
 
@@ -284,6 +290,73 @@ The third phase adds the controls that need more than a manager-side preference:
 - The companion hint is a heuristic based on `V3_SUPPORT`. A modern client can still hard-code the official package, and a legacy client can work without the companion.
 - Phantom-process control is a global platform workaround. It does not guarantee that Pigu survives an OEM battery manager, and Android may ignore or reset the setting after an update.
 - The wireless retry improvements do not add an endless mDNS hunt. If both the new and original ports fail, the user still has to re-pair or rediscover.
+
+### Phase 3 access visibility and diagnostics
+
+This pass is entirely manager-side; there are no server protocol changes. It adds accountability, safer app management, and a checklist for the environmental failures that make Pigu look broken.
+
+**Access log**
+
+- A local ring buffer of the last **400** access events. It is stored in its own `audit_log.xml` preferences file, which is not included by either backup descriptor, so it is not uploaded by cloud backup or device transfer.
+- Recorded events: permission prompt shown, allowed, and denied; single and bulk grants/revokes; pause/resume; automation `START`/`STOP`; companion install attempts and signature conflicts.
+- The Developer page has an **Access log** card that opens a sheet with the newest events first, a **Copy** action, and a **Clear** confirmation.
+- The App Management **Denied** filter shows apps that are not currently granted and whose last recorded permission decision was a denial. It is a view of the log, not a separate persistent denial state: until “remember denial” exists, an app can still ask again, and clearing the log resets the filter.
+- The Service Doctor shows the log count and the number of denied events, and can open the same sheet. The log is a diagnostic aid, not a security boundary; a user with root can edit app data.
+
+**Root-mode warning**
+
+- The first root start shows a confirmation explaining that every authorized app can execute commands as root. The acknowledgement is stored in `secrets.xml`, which is excluded from backup, so restoring a configuration on another device does not silently suppress the warning.
+- A persistent **Running as root** card appears on the home screen whenever the service UID is 0, with the same explanation.
+- Background root starts (automation, start-on-boot, watchdog recovery) are blocked until the warning is acknowledged; they post a notification instead of starting silently.
+- The acknowledgement resets when app data is cleared. That is deliberate, but it means root automation will wait for one in-app confirmation after a data reset.
+
+**Safer bulk actions and app rows**
+
+- “Grant all” and “Revoke all” now require a confirmation showing how many apps are affected. The operation runs off the main thread with a progress dialog and reports how many succeeded or failed.
+- Bulk actions apply to the **currently filtered list**, not necessarily every installed app. The confirmation count makes that explicit.
+- Tapping an app row opens a detail sheet; the switch is the only access toggle on the row. This avoids revoking an app by tapping anywhere on it.
+- A single revoke shows an **Undo** snackbar. Undo is not offered for bulk operations, where the confirmation is the safety mechanism.
+- The app list uses the granted UID set computed by the view model instead of making one binder call per row, and the select-all state is computed in memory rather than by querying every app on every bind.
+
+**Companion signature semantics**
+
+- `CompanionApp.isInstalled()` now means “the official package is installed **and** signed by Pigu.” Another app that owns `moe.shizuku.privileged.api` no longer suppresses the “May require companion app” hints or counts as a usable companion.
+- The companion card still shows the signature conflict and offers Android’s app-info page so the conflicting package can be removed.
+
+**App Management: search, filters, sorting, details**
+
+- Toolbar search matches the app label or package name.
+- Filter chips: **All**, **Allowed**, **Denied** (not granted and last request denied), and **Companion** (older client without a usable companion).
+- Sort by name or recently used. “Recently used” uses the newest access-log entry for the app; if the log is cleared, the order falls back to name order.
+- Per-app detail sheet: icon, label, package, UID/user, version, V3/legacy client type, root requirement, companion hint, last recorded request, access switch, **Open app**, and **App info**.
+
+**Service Doctor**
+
+- A checklist built from the same checks as diagnostics, with an action for each problem:
+  - service running, paused, deliberately stopped, or stopped
+  - notifications allowed
+  - battery optimization
+  - local-network permission on Android 16/17
+  - wireless debugging
+  - developer-options restriction
+  - watchdog preference, running state, and last restart time
+  - phantom-process setting
+  - companion status and signature conflict
+  - access-log denials
+  - last start result and transcript
+- Actions open the relevant settings, request the local-network permission, request the battery-optimization exemption, start the service, resume a pause, or open the access log.
+- **Copy diagnostics** is available from the Service Doctor toolbar.
+- The last Starter transcript is persisted in the app’s private files directory (capped at 64 KB) instead of being lost when the Starter screen closes. The Doctor can show and copy it. The transcript is local-only and can contain paths and ports, so it is not added to the diagnostics snapshot automatically.
+
+**Tests and limits**
+
+- `:manager:testDebugUnitTest` now has **50** tests, including the App Management filter policy. The existing count was 46.
+- The access log is local and clearable, but it is not tamper-proof and does not record callers that never reach the permission activity.
+- There is no persistent “Deny” state yet: the **Denied** filter combines “not currently granted” with “last request denied.” Adding remembered denial would change the permission flow and is a separate decision.
+- Root background starts now require one UI acknowledgement. This is a deliberate security trade-off, not an oversight.
+- The App Management bulk operations only touch the visible/filtered list, and undo is only offered for a single revoke.
+- No device was attached during this pass: the new sheets, chips, root banner, and Doctor actions compile and pass JVM tests, but their runtime layout and OEM behavior still need a device check.
+- Lint remains at the pre-existing baseline: 27 manager errors (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The new files do not add lint errors.
 
 ### Removed
 

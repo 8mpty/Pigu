@@ -47,6 +47,8 @@ public class ShizukuSettings {
         public static final String KEY_LEGACY_PAIRING = "legacy_pairing";
         public static final String KEY_CATEGORY_ADVANCED = "category_advanced";
         public static final String KEY_DEVELOPER_OPTIONS = "developer_options";
+        public static final String KEY_ROOT_WARNING_ACKNOWLEDGED = "root_warning_acknowledged";
+        public static final String KEY_LAST_WATCHDOG_RESTART = "last_watchdog_restart";
     }
 
     private static SharedPreferences sPreferences;
@@ -230,6 +232,26 @@ public class ShizukuSettings {
 
     public static void setPhantomProcessControl(boolean enabled) {
         getPreferences().edit().putBoolean(Keys.KEY_PHANTOM_PROCESS_CONTROL, enabled).apply();
+    }
+
+    /** True after the user has seen the one-time explanation of what root mode exposes. */
+    public static boolean getRootWarningAcknowledged() {
+        // Keep this acknowledgement out of cloud backup and device transfer: a restored
+        // configuration must not silently suppress the root warning on a different device.
+        return sSecrets.getBoolean(Keys.KEY_ROOT_WARNING_ACKNOWLEDGED, false);
+    }
+
+    public static void setRootWarningAcknowledged(boolean acknowledged) {
+        sSecrets.edit().putBoolean(Keys.KEY_ROOT_WARNING_ACKNOWLEDGED, acknowledged).commit();
+    }
+
+    /** Wall-clock time of the last watchdog-triggered restart, for the Service Doctor. */
+    public static long getLastWatchdogRestart() {
+        return getPreferences().getLong(Keys.KEY_LAST_WATCHDOG_RESTART, 0L);
+    }
+
+    public static void setLastWatchdogRestart(long timestamp) {
+        getPreferences().edit().putLong(Keys.KEY_LAST_WATCHDOG_RESTART, timestamp).apply();
     }
 
     /** The boot in which the server last reached RUNNING, so a reboot is not treated as a crash. */

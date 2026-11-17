@@ -18,6 +18,7 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
 
         private const val ID_STATUS = 0L
         private const val ID_PAUSED = 1L
+        private const val ID_ROOT_WARNING = 2L
         private const val ID_PAIRING_METHODS = 3L
         private const val ID_DETAILS = 4L
         private const val ID_ADB_PERMISSION_LIMITED = 7L
@@ -37,6 +38,10 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
 
         if (paused) {
             addItem(PauseViewHolder.CREATOR, null, ID_PAUSED)
+        }
+
+        if (running && status.uid == 0) {
+            addItem(RootWarningViewHolder.CREATOR, null, ID_ROOT_WARNING)
         }
 
         if (running && !status.permission) {

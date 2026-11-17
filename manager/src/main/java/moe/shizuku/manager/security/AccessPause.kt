@@ -3,6 +3,7 @@ package moe.shizuku.manager.security
 import android.content.Context
 import android.util.Log
 import moe.shizuku.manager.ShizukuSettings
+import moe.shizuku.manager.audit.AuditLog
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.shizuku.Shizuku
@@ -19,7 +20,7 @@ object AccessPause {
     private const val TAG = "AccessPause"
 
     /** Returns true when the service was running and was asked to stop. */
-    fun pause(): Boolean {
+    fun pause(context: Context): Boolean {
         val wasRunning = Shizuku.pingBinder() || ShizukuStateMachine.isRunning()
         ShizukuSettings.setPausedWasRunning(wasRunning)
         ShizukuSettings.setAccessPaused(true)
@@ -32,6 +33,12 @@ object AccessPause {
             runCatching { Shizuku.exit() }
                 .onFailure { Log.w(TAG, "Could not stop the service after pausing", it) }
         }
+        AuditLog.record(
+            context,
+            AuditLog.Action.PAUSE,
+            AuditLog.Result.OK,
+            detail = if (wasRunning) "service stopped" else "start gate",
+        )
         return wasRunning
     }
 
@@ -49,5 +56,12 @@ object AccessPause {
         if (wasRunning && !Shizuku.pingBinder()) {
             ShizukuReceiverStarter.start(context)
         }
+
+        AuditLog.record(
+            context,
+            AuditLog.Action.RESUME,
+            AuditLog.Result.OK,
+            detail = if (wasRunning) "service restart requested" else "start gate cleared",
+        )
     }
 }

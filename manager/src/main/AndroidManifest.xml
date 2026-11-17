@@ -115,6 +115,10 @@
             android:name=".home.DeveloperActivity"
             android:label="@string/developer_title" />
         <activity
+            android:name=".home.ServiceDoctorActivity"
+            android:label="@string/service_doctor_title"
+            tools:ignore="Instantiatable" />
+        <activity
             android:name=".management.ApplicationManagementActivity"
             android:label="@string/home_app_management_title" />
         <activity

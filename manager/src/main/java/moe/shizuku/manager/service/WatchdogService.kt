@@ -264,6 +264,7 @@ class WatchdogService : Service() {
         }
 
         restartPolicy.recordAttempt(now)
+        ShizukuSettings.setLastWatchdogRestart(System.currentTimeMillis())
         restartInFlight = true
         restartStartedAt = now
         Log.i(TAG, "Restarting the service after $reason")

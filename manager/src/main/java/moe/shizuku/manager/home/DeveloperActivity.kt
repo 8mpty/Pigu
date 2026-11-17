@@ -3,6 +3,7 @@ package moe.shizuku.manager.home
 import android.os.Bundle
 import androidx.activity.viewModels
 import moe.shizuku.manager.R
+import moe.shizuku.manager.audit.AuditLog
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.databinding.HomeActivityBinding
 import moe.shizuku.manager.management.AppDiscoverySummary
@@ -63,7 +64,9 @@ class DeveloperActivity : AppBarActivity() {
         adapter.updateData(
             homeModel.serviceStatus.value?.data ?: ServiceStatus(),
             appsModel.summary.value?.data ?: AppDiscoverySummary(0, 0, 0, CompanionApp.isInstalled(this)),
-            CompanionApp.status(this, loadIdentity = true)
+            CompanionApp.status(this, loadIdentity = true),
+            AuditLog.count(this),
+            onAuditChanged = { updateData() },
         )
     }
 
