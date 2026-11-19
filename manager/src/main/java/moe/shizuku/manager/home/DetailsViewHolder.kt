@@ -42,13 +42,22 @@ class DetailsViewHolder(
     init {
         root.setOnClickListener {
             val details = data ?: return@setOnClickListener
+            val updated = details.copy(expanded = !details.expanded)
+            // Update this holder directly instead of going through notifyItemChanged(). That
+            // avoids the change animation/rebind race that made rapid expand/collapse taps feel
+            // unresponsive.
+            setData(updated)
+            bindDetails(updated)
             details.onToggle()
         }
     }
 
     override fun onBind() {
+        bindDetails(data ?: DetailsData(ServiceStatus(), 0, 0))
+    }
+
+    private fun bindDetails(details: DetailsData) {
         val context = itemView.context
-        val details = data ?: DetailsData(ServiceStatus(), 0, 0)
         val status = details.status
         val enabled = context.getString(R.string.details_enabled)
         val disabled = context.getString(R.string.details_disabled)
@@ -66,7 +75,10 @@ class DetailsViewHolder(
         )
 
         binding.rows.removeAllViews()
-        if (!details.expanded) return
+        if (!details.expanded) {
+            itemView.requestLayout()
+            return
+        }
 
         val inflater = LayoutInflater.from(context)
 
@@ -133,5 +145,6 @@ class DetailsViewHolder(
             EnvironmentUtils.getAdbTcpPort().takeIf { it > 0 } ?: ShizukuSettings.getTcpPort()
         } else null
         add(R.string.details_tcp_port, tcpPort?.toString() ?: unavailable)
+        itemView.requestLayout()
     }
 }

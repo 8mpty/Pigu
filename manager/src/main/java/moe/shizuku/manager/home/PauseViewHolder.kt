@@ -28,7 +28,8 @@ class PauseViewHolder(
 
     init {
         binding.buttonResume.setOnClickListener {
-            AccessPause.resume(it.context)
+            val context = it.context
+            AccessPause.resume(context)
             (adapter as? HomeAdapter)?.updateData()
         }
     }

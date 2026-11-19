@@ -20,19 +20,23 @@ import rikka.shizuku.Shizuku
 object ServiceRestart {
 
     fun confirm(activity: FragmentActivity, status: ServiceStatus) {
-        if (!status.isRunning || ShizukuSettings.getAccessPaused()) return
+        if (!ShizukuStateMachine.isRunning() || ShizukuSettings.getAccessPaused()) return
+
+        // The card can be shown before the full ServiceStatus reload finishes. Use the live
+        // binder UID in that case so the root/non-root confirmation is still correct.
+        val uid = if (status.uid >= 0) status.uid else runCatching { Shizuku.getUid() }.getOrDefault(-1)
 
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.dialog_restart_service_title)
             .setMessage(
-                if (status.uid == 0) {
+                if (uid == 0) {
                     R.string.dialog_restart_service_message_root
                 } else {
                     R.string.dialog_restart_service_message
                 }
             )
             .setPositiveButton(R.string.restart_service) { _, _ ->
-                if (status.uid == 0) {
+                if (uid == 0) {
                     RootWarning.confirm(activity) { restart(activity, root = true) }
                 } else {
                     restart(activity, root = false)

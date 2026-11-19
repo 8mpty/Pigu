@@ -58,12 +58,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (!ShizukuStateMachine.isRunning()) {
+            // Let the home screen drop the actions card immediately instead of waiting for the
+            // final post at the end of load().
+            _serviceStatus.postValue(Resource.success(ServiceStatus()))
             return ServiceStatus()
         }
 
         val uid = Shizuku.getUid()
         val apiVersion = Shizuku.getVersion()
         val patchVersion = Shizuku.getServerPatchVersion().let { if (it < 0) 0 else it }
+
+        // Publish the cheap part first so the home actions card appears immediately after a
+        // start, instead of waiting for the SELinux/permission checks below. This only needs to
+        // happen when the previous snapshot was not running; routine resumes use the single full
+        // update and avoid rebuilding the list twice.
+        val previous = _serviceStatus.value?.data
+        if (previous == null || !previous.isRunning) {
+            _serviceStatus.postValue(
+                Resource.success(
+                    ServiceStatus(
+                        uid,
+                        apiVersion,
+                        patchVersion,
+                        previous?.takeIf { it.uid == uid }?.seContext,
+                        previous?.takeIf { it.uid == uid }?.permission ?: true,
+                    )
+                )
+            )
+        }
+
         val seContext = if (apiVersion >= 6) {
             try {
                 Shizuku.getSELinuxContext()

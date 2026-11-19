@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
-import android.widget.Toast
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -36,6 +36,13 @@ abstract class HomeActivity : AppBarActivity() {
     private val adapter by unsafeLazy { HomeAdapter(homeModel, appsModel) }
 
     private val stateListener: (ShizukuStateMachine.State) -> Unit = {
+        // Binder callbacks are not guaranteed to arrive on the main thread. Never touch the
+        // RecyclerView directly from them; post the refresh so it cannot be dropped or delayed.
+        runOnUiThread {
+            if (!isFinishing && !isDestroyed) {
+                adapter.updateData()
+            }
+        }
         if (ShizukuStateMachine.isRunning()) {
             checkServerStatus()
             appsModel.load()
@@ -48,6 +55,7 @@ abstract class HomeActivity : AppBarActivity() {
         super.onCreate(savedInstanceState)
 
         val binding = HomeActivityBinding.inflate(layoutInflater, rootView, true)
+        supportActionBar?.title = getString(R.string.app_name)
 
         homeModel.serviceStatus.observe(this) {
             if (it.status == Status.SUCCESS) {
@@ -144,6 +152,12 @@ abstract class HomeActivity : AppBarActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Reconcile a stale STOPPED state in case the binder callback arrived while the activity
+        // was stopped. Do not override an in-flight Starting/Stopping transition.
+        if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STOPPED) {
+            ShizukuStateMachine.update()
+        }
+        adapter.updateData()
         checkServerStatus()
         appsModel.load()
     }

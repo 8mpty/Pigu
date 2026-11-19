@@ -4,10 +4,20 @@
     <!-- To translators: you can leave your here -->
 
     <!-- Home - Status -->
-    <string name="home_status_service_is_running">%1$s is running</string>
     <string name="home_status_service_not_running">%1$s is not running</string>
-    <string name="home_status_service_version">Version %2$s, %1$s</string>
-    <string name="home_status_service_version_update"><![CDATA[Version %2$s, %1$s<br>Start again to update to version %3$s]]></string>
+    <string name="home_status_label_running">Running</string>
+    <string name="home_status_label_stopped">Stopped</string>
+    <string name="home_status_label_error">Error</string>
+    <string name="home_status_label_starting">Starting</string>
+    <string name="home_status_label_stopping">Stopping</string>
+    <string name="home_status_update_hint">Stop and start to update the service to %1$s</string>
+    <string name="home_service_start">Start service</string>
+    <string name="home_service_detail_running">Shizuku %1$s · %2$s</string>
+    <string name="home_service_detail_ready">Service is ready</string>
+    <string name="home_service_detail_stopped">Service is not running</string>
+    <string name="home_service_detail_error">The service stopped unexpectedly</string>
+    <string name="home_service_detail_starting">Waiting for the service…</string>
+    <string name="home_service_detail_stopping">Stopping the service…</string>
     <string name="restart_service">Restart</string>
     <string name="dialog_restart_service_title">Restart Pigu?</string>
     <string name="dialog_restart_service_message">The service will stop and start again using the last working method. Apps lose access for a few seconds. This is the safe way to load a newer server after updating Pigu.</string>
@@ -242,8 +252,6 @@
     <string name="settings_access_resume_dialog_title">Resume app access?</string>
     <string name="settings_access_resume_dialog_message">Pigu will clear the pause. If the service was running when you paused, it will try to start it again using the last start method.</string>
     <string name="settings_access_resume">Resume access</string>
-    <string name="home_status_service_paused">%1$s is paused</string>
-    <string name="home_status_service_paused_summary">App access is paused. No app can reach the service, and automatic starts are blocked.</string>
     <string name="home_pause_title">Pigu is paused</string>
     <string name="home_pause_summary">App access is paused. Grants are kept, but apps cannot use the service until you resume.</string>
     <string name="home_pause_resume">Resume</string>
