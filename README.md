@@ -19,10 +19,10 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 ## Features
 
 - **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root.
+- **Direct launch to the home screen:** no first-run setup pass; permissions are requested only when the relevant flow needs them.
 - **Start / stop / restart control** from the home screen: stop has a confirmation, and restart stops the old server before loading the new one.
 - **Quick Settings tile and long-press shortcuts** for pause/resume, starting the service, App Management, and the Developer page. The tile is a pause switch, never a kill-all-clients button.
 - **Global pause / kill switch** that stops the service, keeps app grants, and blocks every start path until resumed.
-- **Skippable first-run onboarding** for notifications, local-network access, battery optimization, the three start methods, and the optional companion.
 - **Access control settings category** for pause, the local access log, and a confirmed “revoke all app grants” action.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.
 - **Option to keep wireless debugging on** after connecting, with a warning about the security trade-off.
@@ -107,7 +107,6 @@ Older Android versions keep the previous automatic behavior.
 - The access log is a local 400-entry ring buffer containing package names, UIDs, timestamps, and action results. It is excluded from cloud backup and device transfer, and can be cleared from the Developer page.
 - The last Starter transcript is stored in the app private files directory, excluded from backup. It can contain paths and ports, is never uploaded, and is only copied when the user taps **Copy** in the Service Doctor.
 - The root-warning acknowledgement is stored in the excluded `secrets` preferences file, so a restored backup does not suppress the warning on another device.
-- The first-run onboarding completion flag is stored in the same excluded `secrets` file. Onboarding collects no data; it only opens the system permission screens.
 - The optional phantom-process control changes one global Android setting (`settings_enable_monitor_phantom_procs`). It is off by default, warns before changing anything, verifies the result, and restores Android's default when turned off.
 - Only the permissions needed for the service, wireless pairing, and permission-prompt protection are declared.
 
@@ -177,16 +176,16 @@ Run the JVM unit tests for the pure decisions:
 ./gradlew :manager:testDebugUnitTest
 ```
 
-They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, the duplicate-start gate, the wireless port retry schedule, app-discovery companion counts, and the App Management filter policy. The suite currently has 50 tests. These are plain JVM tests; they do not need a device or the Shizuku service.
+They cover the automation token gate and notification throttle, permission-request validation and label sanitizing, the boot claim, the wireless start route, the watchdog restart policy, the duplicate-start gate, the wireless port retry schedule, app-discovery companion counts, and the App Management filter policy. The suite currently has 53 tests. These are plain JVM tests; they do not need a device or the Shizuku service.
 
 ## What changed in this fork
 
 ### Added
 
 - New identity: package `com.empty.pigu`, label **Pigu**, and a new adaptive icon.
-- Redesigned home screen: service status with a stop button, a single **Pairing methods** card, and an **App & service details** card (including Pigu version, server version, Android version, ABI, pairing method, authorized apps, companion status, start-on-boot, TCP mode, and TCP port).
+- Redesigned home screen: service status with a stop button, a single **Pairing methods** card, and a collapsible **App & service details** card (including Pigu version, server version, Android version, ABI, pairing method, authorized apps, companion status, start-on-boot, TCP mode, and TCP port).
 - A separate pairing-methods page with wireless, computer/ADB, and root cards. Root is shown but disabled when no root is detected.
-- A **Developer** page containing authorized applications, terminal setup, automation intents, the companion status, a **Copy diagnostics** card, and the developer guide.
+- A **Developer** page grouped into **Apps and access**, **Tools**, and **Diagnostics and help**, containing authorized applications, terminal setup, automation intents, the companion status, a **Copy diagnostics** card, and the developer guide.
 - The optional **Pigu Companion** app.
 
 ### Phase 0 hardening
@@ -368,13 +367,10 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - **Revoke all app grants** lists every app that currently has a grant, shows the count in the confirmation, runs off the main thread, and records one bulk audit entry. It does not stop the service and does not revoke Pigu itself.
 - The action requires a running service; without one it explains why instead of failing with a binder error. There is no bulk undo, matching the App Management bulk-action policy.
 
-**First-run onboarding**
+**Permissions without a first-run gate**
 
-- A short, skippable first-run screen requests **notifications**, the **local-network permission** where Android requires it, and offers the **battery-optimization exemption**. It then explains wireless debugging, ADB from a computer, root, and the optional companion.
-- Permissions are requested explicitly by the user, not sprayed automatically on launch. Every permission is also requested again at the point it is needed, so **Skip** never leaves a permanent silent failure.
-- Onboarding completion is stored in `secrets.xml`, excluded from backup, so another device gets its own setup pass.
-- If a permission is denied, onboarding stays usable, shows the blocked state, and the relevant runtime path explains the failure later.
-- The screen is intentionally text-and-buttons only; it uses the normal app theme, scrolls on small screens, and remains D-pad focusable on TV.
+- Pigu opens directly to the home screen. Notifications, local-network access, and the battery-optimization exemption are requested at the point they are needed, so there is no separate setup pass to complete or skip.
+- If a permission is denied, the relevant flow explains the failure and offers the system settings shortcut.
 
 **Central local-network permission gate**
 
@@ -407,10 +403,11 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 
 **UI polish for mobile and TV**
 
-- Onboarding now applies system-bar and display-cutout insets to its bottom action bar, so Skip/Back/Next stay above gesture navigation and TV overscan areas. The primary Next/Done button receives initial D-pad focus after each step.
+- The **App & service details** card is now collapsed by default. Tap it, or press Enter/D-pad center, to expand; the chevron rotates and a short summary aligned under the title explains what is inside. The expanded state survives service/app refreshes and rotation, and the card remains a single focusable target for TV remote navigation.
 - Pairing methods applies bottom/start/end insets to its scrolling content, keeping the last card reachable above the navigation bar.
 - The local TCP dialog now selects the prefilled port, clears its error while editing, exposes a helper line, supports the IME Done action, and focuses the port field when opened.
 - The revoke-all-grants summary now states that it has no undo and requires a running service.
+- The Developer page is now split into three labelled groups instead of eight equally weighted cards: **Apps and access** (manage apps, companion, access log), **Tools** (terminal, automation intents), and **Diagnostics and help** (Service Doctor, copy diagnostics, developer guide). Section headings span both columns on the tablet/TV grid and are not focusable, so D-pad navigation still moves card-to-card.
 - These changes use standard Material focusable controls, so existing mobile touch, TV D-pad, and accessibility behavior is preserved.
 
 **Tests and limits**
@@ -420,15 +417,16 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - There is no persistent “Deny” state yet: the **Denied** filter combines “not currently granted” with “last request denied.” Adding remembered denial would change the permission flow and is a separate decision.
 - Root background starts now require one UI acknowledgement. This is a deliberate security trade-off, not an oversight.
 - The App Management bulk operations only touch the visible/filtered list, and undo is only offered for a single revoke.
-- No device was attached during this pass: the new QS tile, shortcuts, onboarding, restart flow, sheets, chips, root banner, and Doctor actions compile and pass JVM tests, but their runtime layout and OEM behavior still need a device check.
+- Runtime checks on a **Vivo V2465A (Android 16)** over wireless ADB confirmed the collapsed/expanded details card, click and D-pad toggles, state retention across resume and rotation, Developer section headings, the two-column home layout, and full-span Developer headings at tablet width (simulated with `wm size`/`wm density`, then restored). The QS tile, shortcuts, restart flow, sheets, chips, root banner, Service Doctor actions, and actual TV overscan/remote behavior still need dedicated checks.
 - The Quick Settings tile refreshes when the panel opens and after a tap; it does not keep a live binder observer while closed. The static shortcuts embed the `com.empty.pigu` application ID, so changing the application ID requires updating `res/xml/shortcuts.xml`.
 - Restart is a stop-then-start, not a hot swap. If the Starter screen is canceled or the new start fails, the service stays stopped until the user starts it again.
-- Onboarding does not grant anything automatically. If notifications are denied, the worker still cannot post the local-network notification; the user must open Pigu and start from **Pairing methods**.
-- Lint has **26 manager errors** (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The changed files add no new lint errors; the new onboarding activity and layout are explicitly ignored for the known false positive.
+- If notifications are denied, the worker still cannot post the local-network notification; the user must open Pigu and start from **Pairing methods**.
+- Lint has the pre-existing manager errors (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The changed files add no new lint errors.
 - API 35 and below do not require a local-network runtime permission. API 36 and 37 do; code degrades to a notification when a background path cannot request it.
 
 ### Removed
 
+- The first-run onboarding activity, layout, strings, and completion flag. Pigu now opens directly to the home screen.
 - Stealth/hidden mode and its clone/stub APK tooling.
 - The in-app update checker and its APK repackaging/re-signing code.
 - Translation resources and the Crowdin configuration.

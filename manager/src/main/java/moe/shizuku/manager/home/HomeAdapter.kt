@@ -9,6 +9,8 @@ import rikka.recyclerview.IndexCreatorPool
 class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: AppsViewModel) :
     IdBasedRecyclerViewAdapter(ArrayList()) {
 
+    private var detailsData: DetailsData? = null
+
     init {
         updateData()
         setHasStableIds(true)
@@ -58,11 +60,22 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
             DetailsData(
                 status,
                 appsModel.grantedCount.value?.data ?: 0,
-                appsModel.packages.value?.data?.size ?: 0
-            ),
+                appsModel.packages.value?.data?.size ?: 0,
+                homeModel.detailsExpanded,
+                ::toggleDetails,
+            ).also { detailsData = it },
             ID_DETAILS
         )
 
         notifyDataSetChanged()
+    }
+
+    private fun toggleDetails() {
+        homeModel.detailsExpanded = !homeModel.detailsExpanded
+        val current = detailsData ?: return
+        val updated = current.copy(expanded = homeModel.detailsExpanded)
+        detailsData = updated
+        setFirstItemById(ID_DETAILS, updated)
+        notifyItemChangeById(ID_DETAILS)
     }
 }

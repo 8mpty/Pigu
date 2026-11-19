@@ -4,6 +4,8 @@ import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.isVisible
 import moe.shizuku.manager.BuildConfig
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
@@ -19,7 +21,9 @@ import rikka.recyclerview.BaseViewHolder.Creator
 data class DetailsData(
     val status: ServiceStatus,
     val authorizedApps: Int,
-    val totalApps: Int
+    val totalApps: Int,
+    val expanded: Boolean = false,
+    val onToggle: () -> Unit = {},
 )
 
 class DetailsViewHolder(
@@ -35,6 +39,13 @@ class DetailsViewHolder(
         }
     }
 
+    init {
+        root.setOnClickListener {
+            val details = data ?: return@setOnClickListener
+            details.onToggle()
+        }
+    }
+
     override fun onBind() {
         val context = itemView.context
         val details = data ?: DetailsData(ServiceStatus(), 0, 0)
@@ -43,7 +54,20 @@ class DetailsViewHolder(
         val disabled = context.getString(R.string.details_disabled)
         val unavailable = context.getString(R.string.details_unavailable)
 
+        binding.summary.isVisible = !details.expanded
+        binding.rows.isVisible = details.expanded
+        binding.expandIcon.rotation = if (details.expanded) 180f else 0f
+        ViewCompat.setStateDescription(
+            itemView,
+            context.getString(
+                if (details.expanded) R.string.details_collapse_action
+                else R.string.details_expand_action
+            )
+        )
+
         binding.rows.removeAllViews()
+        if (!details.expanded) return
+
         val inflater = LayoutInflater.from(context)
 
         fun add(label: Int, value: CharSequence) {

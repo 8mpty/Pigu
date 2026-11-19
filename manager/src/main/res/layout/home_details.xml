@@ -17,13 +17,40 @@
             android:importantForAccessibility="no"
             android:src="@drawable/ic_outline_info_24" />
 
-        <TextView
-            style="@style/CardTitle"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/home_icon_padding"
             android:layout_weight="1"
-            android:text="@string/details_title" />
+            android:duplicateParentState="true"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/CardTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:text="@string/details_title" />
+
+            <TextView
+                android:id="@+id/summary"
+                style="@style/CardSummary.Brief"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:text="@string/details_collapsed_hint" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/expand_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="8dp"
+            android:duplicateParentState="true"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_expand_more_24"
+            android:tint="?attr/colorOnSurfaceVariant" />
 
     </LinearLayout>
 
@@ -32,6 +59,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
+        android:visibility="gone"
         tools:ignore="UselessParent" />
 
 </LinearLayout>

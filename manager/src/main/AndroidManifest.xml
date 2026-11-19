@@ -113,10 +113,6 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".onboarding.OnboardingActivity"
-            android:label="@string/onboarding_app_bar_title"
-            tools:ignore="Instantiatable" />
-        <activity
             android:name=".home.StartMethodsActivity"
             android:label="@string/start_methods_title" />
         <activity

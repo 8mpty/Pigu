@@ -27,6 +27,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appContext: Context = getApplication<Application>().applicationContext
 
+    /** Keeps the details card open across configuration changes. */
+    var detailsExpanded = false
+
     private val _serviceStatus = MutableLiveData<Resource<ServiceStatus>>()
     val serviceStatus = _serviceStatus as LiveData<Resource<ServiceStatus>>
 

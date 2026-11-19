@@ -132,6 +132,9 @@
 
     <!-- Home - Details -->
     <string name="details_title">App &amp; service details</string>
+    <string name="details_collapsed_hint">Versions, Device and TCP details</string>
+    <string name="details_expand_action">Show details</string>
+    <string name="details_collapse_action">Hide details</string>
     <string name="details_pigu_version">Pigu version</string>
     <string name="details_shizuku_version">Shizuku version</string>
     <string name="details_android_version">Android version</string>
@@ -275,6 +278,9 @@
     <string name="settings_black_night_theme">Black night theme</string>
     <string name="settings_black_night_theme_summary">Use the pure black theme if night mode is enabled</string>
     <string name="developer_title">Developer</string>
+    <string name="developer_section_apps">Apps and access</string>
+    <string name="developer_section_tools">Tools</string>
+    <string name="developer_section_help">Diagnostics and help</string>
     <string name="home_diagnostics_title">Copy diagnostics</string>
     <string name="home_diagnostics_description">Copy app, device, and service details for a bug report. The auth token, Wi-Fi name, IP addresses, and app list are never included.</string>
     <string name="home_diagnostics_action">Tap to copy a snapshot</string>
@@ -563,42 +569,6 @@
     <string name="service_doctor_unknown_error">Unknown error</string>
     <string name="service_doctor_no_transcript">No transcript was saved for the last start.</string>
     <string name="service_doctor_transcript_title">Last start transcript</string>
-
-    <!-- Onboarding -->
-    <string name="onboarding_app_bar_title">Welcome to Pigu</string>
-    <string name="onboarding_title">Set up Pigu</string>
-    <string name="onboarding_intro">Pigu needs a few permissions to start reliably. You can skip this now and allow them later, when the app asks.</string>
-    <string name="onboarding_permissions_title">Permissions</string>
-    <string name="onboarding_notifications_title">Notifications</string>
-    <string name="onboarding_notifications_summary">Pairing and start failures use notifications, including the pairing code.</string>
-    <string name="onboarding_local_network_title">Local network</string>
-    <string name="onboarding_local_network_summary">Android 16 and 17 need this to discover wireless debugging. Without it, pairing may loop or fail.</string>
-    <string name="onboarding_battery_title">Battery optimization</string>
-    <string name="onboarding_battery_summary">Optional. Helps start-on-boot and the watchdog survive aggressive battery managers.</string>
-    <string name="onboarding_permissions_later">Skipping is safe: each permission is requested again at the point it is needed.</string>
-    <string name="onboarding_allow">Allow</string>
-    <string name="onboarding_open_settings">Open settings</string>
-    <string name="onboarding_status_allowed">Allowed</string>
-    <string name="onboarding_status_blocked">Not allowed</string>
-    <string name="onboarding_status_optional">Optional</string>
-    <string name="onboarding_notifications_blocked_hint">Notifications stay off. You can enable them later in Android settings.</string>
-    <string name="onboarding_permission_open_failed">Could not open the system permission screen.</string>
-    <string name="onboarding_start_heading">Three ways to start</string>
-    <string name="onboarding_start_intro">Choose the method that fits your device. You can change it later in Pairing methods.</string>
-    <string name="onboarding_start_wireless_title">Wireless debugging (recommended)</string>
-    <string name="onboarding_start_wireless_summary">On Android 11+, pair once and start from the phone. Android may ask for local network access.</string>
-    <string name="onboarding_start_adb_title">ADB from a computer</string>
-    <string name="onboarding_start_adb_summary">Enable USB debugging, connect once, and send the provided adb command. Needed on some TVs and older devices.</string>
-    <string name="onboarding_start_root_title">Root</string>
-    <string name="onboarding_start_root_summary">If Pigu detects root, it can start with Magisk, KernelSU, or similar. Authorized apps then run commands as root.</string>
-    <string name="onboarding_start_root_unavailable">Root was not detected on this device. You can still use wireless debugging or ADB.</string>
-    <string name="onboarding_companion_title">Companion app (optional)</string>
-    <string name="onboarding_companion_summary">Only needed when an app checks for the official Shizuku package. It does not provide the service; Pigu still does.</string>
-    <string name="onboarding_open_developer">Open Developer page</string>
-    <string name="onboarding_skip">Skip</string>
-    <string name="onboarding_back">Back</string>
-    <string name="onboarding_continue">Continue</string>
-    <string name="onboarding_done">Done</string>
 
     <!-- Messages for legacy -->
     <string name="dialog_legacy_not_support_title">%1$s does not support modern Shizuku</string>
