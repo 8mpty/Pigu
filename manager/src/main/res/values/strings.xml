@@ -119,6 +119,7 @@
     <string name="dialog_local_tcp_title">Start over local TCP</string>
     <string name="dialog_local_tcp_message">This skips Wi-Fi and discovery. It only works if adb is already listening on this port — for example after running adb tcpip 5555 from a computer, or when TCP mode kept the port open.\n\nIf nothing is listening, the Starter screen reports a connection error instead of searching for wireless debugging.</string>
     <string name="dialog_local_tcp_port">Port</string>
+    <string name="dialog_local_tcp_helper">Example: 5555. The port must already be listening.</string>
     <string name="dialog_local_tcp_invalid">Port must be an integer from 1 to 65535.</string>
     <string name="dialog_local_tcp_start">Start</string>
     <string name="local_tcp_connect_failed">Could not connect to 127.0.0.1:%1$d.\n\nMake sure adb is already listening on that port. Connect by USB and run adb tcpip %1$d, or enable TCP mode before losing Wi-Fi. This action does not open the port for you.</string>
@@ -208,7 +209,7 @@
     <string name="settings_access_log">Access log</string>
     <string name="settings_access_log_summary">Review permission, grant, pause, and automation events. Local only.</string>
     <string name="settings_revoke_all_grants">Revoke all app grants</string>
-    <string name="settings_revoke_all_grants_summary">Every app must request access again. The service keeps running.</string>
+    <string name="settings_revoke_all_grants_summary">Every app must request access again. No undo; requires a running service.</string>
     <string name="settings_revoke_all_grants_title">Revoke all app grants?</string>
     <string name="settings_revoke_all_grants_action">Revoke all</string>
     <string name="settings_revoke_all_grants_none">No app grants to revoke.</string>

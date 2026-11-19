@@ -264,6 +264,7 @@
     </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
+        android:id="@+id/onboarding_actions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"

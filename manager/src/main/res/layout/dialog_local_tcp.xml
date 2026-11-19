@@ -22,14 +22,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/dialog_local_tcp_port"
-        app:endIconMode="none">
+        app:endIconMode="none"
+        app:helperText="@string/dialog_local_tcp_helper">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/port"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:imeOptions="actionDone"
             android:inputType="number"
             android:maxLength="5"
+            android:selectAllOnFocus="true"
             android:singleLine="true" />
 
     </com.google.android.material.textfield.TextInputLayout>

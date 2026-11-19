@@ -8,7 +8,10 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.app.AppBarActivity
@@ -80,6 +83,24 @@ class OnboardingActivity : AppBarActivity() {
             if (showingPermissions) showStartMethods() else finishOnboarding()
         }
 
+        val actions = binding.onboardingActions
+        val baseLeft = actions.paddingLeft
+        val baseTop = actions.paddingTop
+        val baseRight = actions.paddingRight
+        val baseBottom = actions.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(actions) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.updatePadding(
+                left = baseLeft + bars.left,
+                top = baseTop,
+                right = baseRight + bars.right,
+                bottom = baseBottom + bars.bottom,
+            )
+            insets
+        }
+
         binding.localNetworkCard.isVisible = LocalNetworkPermission.isRequired()
         if (!EnvironmentUtils.isRooted()) {
             binding.startRootSummary.setText(R.string.onboarding_start_root_unavailable)
@@ -109,6 +130,7 @@ class OnboardingActivity : AppBarActivity() {
         binding.onboardingTitle.setText(R.string.onboarding_title)
         binding.onboardingIntro.setText(R.string.onboarding_intro)
         refreshPermissions()
+        binding.next.post { if (!isFinishing) binding.next.requestFocus() }
     }
 
     private fun showStartMethods() {
@@ -120,6 +142,7 @@ class OnboardingActivity : AppBarActivity() {
         binding.next.setText(R.string.onboarding_done)
         binding.onboardingTitle.setText(R.string.onboarding_start_heading)
         binding.onboardingIntro.setText(R.string.onboarding_start_intro)
+        binding.next.post { if (!isFinishing) binding.next.requestFocus() }
     }
 
     private fun refreshPermissions() {

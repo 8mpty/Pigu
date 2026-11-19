@@ -61,7 +61,7 @@ The optional **Pigu Companion** is a small, non-launchable app that uses that ol
 The companion APK is bundled inside Pigu and can be installed from the Developer page. There are two install paths:
 
 - **Install** — installs the bundled APK through the running Pigu service (or root). Nothing is downloaded.
-- **System installer** — writes the bundled APK to Pigu's cache and opens Android's package installer, so the install is confirmed by the system.
+- **System installer** — writes the bundled APK to Pigu's cache and opens Android's package installer, so the installation is confirmed by the system.
 
 The standalone `pigu-companion-*.apk` is also still published in Releases for people who prefer to sideload it themselves.
 
@@ -86,7 +86,7 @@ The companion is a package identity stub, not a full permission replacement:
 
 Android 17 QPR3 and later can require `MANAGE_DEBUGGING` for USB and wireless debugging settings. That is a `signature|privileged` permission, so Pigu cannot hold it even with `WRITE_SECURE_SETTINGS`.
 
-On those builds, Pigu treats these writes as best-effort:
+On those builds, Pigu treats this writes as best-effort:
 
 - **Auto-disable USB debugging** and **Keep wireless debugging on** may not take effect automatically.
 - Pigu can still start and use the service when the required debugging mode is already enabled.
@@ -159,7 +159,7 @@ companion/build/outputs/apk/debug/pigu-companion-debug.apk
 companion/build/outputs/apk/release/pigu-companion-release.apk
 ```
 
-Release builds use `signing.gradle` and `signing.properties`; without them they fall back to the debug keystore. Pigu and its companion must be signed with the same certificate so Pigu can recognize the companion.
+Release builds use `signing.gradle` and `signing.properties`; without them, they fall back to the debug keystore. Pigu and its companion must be signed with the same certificate so Pigu can recognize the companion.
 
 You can build both at once:
 
@@ -195,10 +195,10 @@ The first hardening pass changes decisions around the existing architecture rath
 
 **Permission prompt**
 
-- Validates that the request has a positive UID and PID, that `ApplicationInfo.uid` matches the requesting UID, and that the package name is well formed. Invalid requests are denied without showing a prompt. Android's package list is used for shared-UID disclosure but is not treated as proof of ownership, because package visibility can hide a valid caller from it.
+- Validates that the request has a positive UID and PID, that `ApplicationInfo.uid` matches the requesting UID, and that the package name is well-formed. Invalid requests are denied without showing a prompt. Android's package list is used for shared-UID disclosure but is not treated as proof of ownership, because package visibility can hide a valid caller from it.
 - Shows the package name and any other packages sharing the UID, so a shared UID cannot hide behind a friendly label.
 - Uses only the first line of the app label, removes bidi and control characters, bounds it to 500 characters, and HTML-escapes it before rendering.
-- Blocks touches Android reports as obscured, hides non-system overlays on Android 12+, and disables both answers for 500 ms after the dialog appears. This is a small deliberate delay; it prevents a tap already travelling from answering a prompt the user has not seen.
+- Blocks touches Android reports as obscured, hides non-system overlays on Android 12+, and disables both answers for 500 ms after the dialog appears. This is a small deliberate delay; it prevents a tap already traveling from answering a prompt the user has not seen.
 
 **Watchdog lifecycle**
 
@@ -401,9 +401,17 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 **Permission prompt binder wait**
 
 - `RequestPermissionActivity.waitForBinder()` no longer uses `runBlocking` on the main thread with a 5-second timeout in `onCreate`. The wait is now a suspend function inside `lifecycleScope`, so a late binder no longer freezes the UI before the permission dialog appears.
-- The timeout and denial behavior are unchanged: if the server is still unavailable after 5 seconds, the request is recorded as denied and the activity finishes. If the activity is destroyed first, the coroutine is cancelled.
+- The timeout and denial behavior are unchanged: if the server is still unavailable after 5 seconds, the request is recorded as denied and the activity finishes. If the activity is destroyed first, the coroutine is canceled.
 - This is the only remaining item from the earlier main-thread binder list. `ToggleAllViewHolder` already performs bulk changes off the main thread with progress, and App Management rows already use the cached granted-UID set instead of calling `granted()` per bind.
 - `checkSelfPermission()` still performs its short binder call on the main thread when the coroutine resumes. The expensive 5-second wait is no longer there, but that call has not been moved to a background dispatcher.
+
+**UI polish for mobile and TV**
+
+- Onboarding now applies system-bar and display-cutout insets to its bottom action bar, so Skip/Back/Next stay above gesture navigation and TV overscan areas. The primary Next/Done button receives initial D-pad focus after each step.
+- Pairing methods applies bottom/start/end insets to its scrolling content, keeping the last card reachable above the navigation bar.
+- The local TCP dialog now selects the prefilled port, clears its error while editing, exposes a helper line, supports the IME Done action, and focuses the port field when opened.
+- The revoke-all-grants summary now states that it has no undo and requires a running service.
+- These changes use standard Material focusable controls, so existing mobile touch, TV D-pad, and accessibility behavior is preserved.
 
 **Tests and limits**
 
@@ -414,7 +422,7 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - The App Management bulk operations only touch the visible/filtered list, and undo is only offered for a single revoke.
 - No device was attached during this pass: the new QS tile, shortcuts, onboarding, restart flow, sheets, chips, root banner, and Doctor actions compile and pass JVM tests, but their runtime layout and OEM behavior still need a device check.
 - The Quick Settings tile refreshes when the panel opens and after a tap; it does not keep a live binder observer while closed. The static shortcuts embed the `com.empty.pigu` application ID, so changing the application ID requires updating `res/xml/shortcuts.xml`.
-- Restart is a stop-then-start, not a hot swap. If the Starter screen is cancelled or the new start fails, the service stays stopped until the user starts it again.
+- Restart is a stop-then-start, not a hot swap. If the Starter screen is canceled or the new start fails, the service stays stopped until the user starts it again.
 - Onboarding does not grant anything automatically. If notifications are denied, the worker still cannot post the local-network notification; the user must open Pigu and start from **Pairing methods**.
 - Lint has **26 manager errors** (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The changed files add no new lint errors; the new onboarding activity and layout are explicitly ignored for the known false positive.
 - API 35 and below do not require a local-network runtime permission. API 36 and 37 do; code degrades to a notification when a background path cannot request it.

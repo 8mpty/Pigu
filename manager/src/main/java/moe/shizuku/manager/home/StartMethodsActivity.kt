@@ -2,8 +2,13 @@ package moe.shizuku.manager.home
 
 import android.os.Build
 import android.os.Bundle
+import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.ViewCompat
+import androidx.core.widget.doAfterTextChanged
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import moe.shizuku.manager.R
@@ -34,6 +39,22 @@ class StartMethodsActivity : AppBarActivity() {
         binding.wirelessStart.setOnClickListener {
             StartMethods.startWireless(this, lifecycleScope)
         }
+        val scroll = binding.root
+        val baseLeft = scroll.paddingLeft
+        val baseRight = scroll.paddingRight
+        val baseBottom = scroll.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.updatePadding(
+                left = baseLeft + bars.left,
+                right = baseRight + bars.right,
+                bottom = baseBottom + bars.bottom,
+            )
+            insets
+        }
+
         binding.localTcpStart.setOnClickListener {
             showLocalTcpDialog()
         }
@@ -59,7 +80,8 @@ class StartMethodsActivity : AppBarActivity() {
         val dialogBinding = DialogLocalTcpBinding.inflate(layoutInflater)
         val defaultPort = ShizukuSettings.getTcpPort()
         dialogBinding.port.setText(defaultPort.toString())
-        dialogBinding.port.setSelection(dialogBinding.port.text?.length ?: 0)
+        dialogBinding.port.setSelection(0, dialogBinding.port.text?.length ?: 0)
+        dialogBinding.port.doAfterTextChanged { dialogBinding.portLayout.error = null }
 
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(R.string.dialog_local_tcp_title)
@@ -68,18 +90,30 @@ class StartMethodsActivity : AppBarActivity() {
             .setNegativeButton(android.R.string.cancel, null)
             .create()
 
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val port = dialogBinding.port.text?.toString()?.toIntOrNull()
-                if (port == null || port !in 1..65535) {
-                    dialogBinding.portLayout.error = getString(R.string.dialog_local_tcp_invalid)
-                    return@setOnClickListener
-                }
-
-                dialogBinding.portLayout.error = null
-                dialog.dismiss()
-                StartMethods.startLocalTcp(this, port)
+        fun startFromPort() {
+            val port = dialogBinding.port.text?.toString()?.toIntOrNull()
+            if (port == null || port !in 1..65535) {
+                dialogBinding.portLayout.error = getString(R.string.dialog_local_tcp_invalid)
+                dialogBinding.port.requestFocus()
+                return
             }
+
+            dialogBinding.portLayout.error = null
+            dialog.dismiss()
+            StartMethods.startLocalTcp(this, port)
+        }
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { startFromPort() }
+            dialogBinding.port.setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    startFromPort()
+                    true
+                } else {
+                    false
+                }
+            }
+            dialogBinding.port.requestFocus()
         }
         dialog.show()
     }
