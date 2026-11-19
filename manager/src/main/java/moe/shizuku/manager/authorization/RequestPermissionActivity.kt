@@ -12,10 +12,11 @@ import android.text.method.LinkMovementMethod
 import android.view.MotionEvent
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import moe.shizuku.manager.Helps
 import moe.shizuku.manager.R
@@ -87,17 +88,15 @@ class RequestPermissionActivity : AppActivity() {
         return false
     }
 
-    private fun waitForBinder(): Boolean {
-        return runBlocking {
-            try {
-                withTimeout(5000) {
-                    ShizukuStateMachine.asFlow().first { it == ShizukuStateMachine.State.RUNNING }
-                }
-                true
-            } catch (e: TimeoutCancellationException) {
-                LOGGER.e(e, "Binder not received in 5s")
-                false
+    private suspend fun waitForBinder(): Boolean {
+        return try {
+            withTimeout(5000) {
+                ShizukuStateMachine.asFlow().first { it == ShizukuStateMachine.State.RUNNING }
             }
+            true
+        } catch (e: TimeoutCancellationException) {
+            LOGGER.e(e, "Binder not received in 5s")
+            false
         }
     }
 
@@ -165,7 +164,7 @@ class RequestPermissionActivity : AppActivity() {
         if (!decision.accepted) {
             LOGGER.w("Permission request rejected: %s", decision.rejection)
             AuditLog.record(
-                this,
+                this@RequestPermissionActivity,
                 AuditLog.Action.PERMISSION,
                 AuditLog.Result.DENIED,
                 auditPackage,
@@ -179,104 +178,108 @@ class RequestPermissionActivity : AppActivity() {
             return
         }
 
-        if (!waitForBinder()) {
-            AuditLog.record(
-                this,
-                AuditLog.Action.PERMISSION,
-                AuditLog.Result.DENIED,
-                auditPackage,
-                uid.takeIf { it > 0 },
-                detail = "server unavailable",
-            )
-            finish()
-            return
-        }
-
-        if (!checkSelfPermission()) {
-            AuditLog.record(
-                this,
-                AuditLog.Action.PERMISSION,
-                AuditLog.Result.DENIED,
-                auditPackage,
-                uid.takeIf { it > 0 },
-                detail = "manager cannot grant runtime permissions",
-            )
-            setResult(uid, pid, requestCode, allowed = false, onetime = true)
-            return
-        }
-
-        binding = ConfirmationDialogBinding.inflate(layoutInflater).apply {
-            title.text = HtmlCompat.fromHtml(
-                getString(
-                    R.string.permission_warning_template,
-                    TextUtils.htmlEncode(decision.label),
-                    getString(R.string.permission_group_description),
-                ),
-            )
-            packageName.text = decision.packageName
-
-            if (decision.sharedUidPackages.isEmpty()) {
-                sharedUidWarning.visibility = android.view.View.GONE
-            } else {
-                sharedUidWarning.visibility = android.view.View.VISIBLE
-                sharedUidWarning.text = getString(
-                    R.string.permission_shared_uid_warning,
-                    decision.sharedUidPackages.joinToString(", "),
-                )
-            }
-
-            // A tap that was already travelling when the prompt appeared must not answer it.
-            button1.isEnabled = false
-            button3.isEnabled = false
-            button1.alpha = 0.5f
-            button3.alpha = 0.5f
-            button1.setOnClickListener {
-                answer(uid, pid, requestCode, allowed = true, onetime = false)
-            }
-            button3.setOnClickListener {
-                answer(uid, pid, requestCode, allowed = false, onetime = true)
-            }
-        }
-
-        dialog = MaterialAlertDialogBuilder(this)
-                .setView(binding.root)
-                .setCancelable(false)
-                .setOnDismissListener { finish() }
-                .create()
-        dialog.setCanceledOnTouchOutside(false)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Set this before the dialog window is added so the window manager applies it.
-            runCatching { dialog.window?.setHideOverlayWindows(true) }
-        }
-        dialog.setOnShowListener {
-            dialog.window?.decorView?.filterTouchesWhenObscured = true
-            if (!auditShown) {
-                auditShown = true
+        // Do not block onCreate while waiting for a late binder; that can ANR before the
+        // permission prompt is even visible.
+        lifecycleScope.launch {
+            if (!waitForBinder()) {
                 AuditLog.record(
-                    this,
+                    this@RequestPermissionActivity,
                     AuditLog.Action.PERMISSION,
-                    AuditLog.Result.SHOWN,
+                    AuditLog.Result.DENIED,
+                    auditPackage,
+                    uid.takeIf { it > 0 },
+                    detail = "server unavailable",
+                )
+                finish()
+                return@launch
+            }
+
+            if (!checkSelfPermission()) {
+                AuditLog.record(
+                    this@RequestPermissionActivity,
+                    AuditLog.Action.PERMISSION,
+                    AuditLog.Result.DENIED,
+                    auditPackage,
+                    uid.takeIf { it > 0 },
+                    detail = "manager cannot grant runtime permissions",
+                )
+                setResult(uid, pid, requestCode, allowed = false, onetime = true)
+                return@launch
+            }
+
+            binding = ConfirmationDialogBinding.inflate(layoutInflater).apply {
+                title.text = HtmlCompat.fromHtml(
+                    getString(
+                        R.string.permission_warning_template,
+                        TextUtils.htmlEncode(decision.label),
+                        getString(R.string.permission_group_description),
+                    ),
+                )
+                packageName.text = decision.packageName
+
+                if (decision.sharedUidPackages.isEmpty()) {
+                    sharedUidWarning.visibility = android.view.View.GONE
+                } else {
+                    sharedUidWarning.visibility = android.view.View.VISIBLE
+                    sharedUidWarning.text = getString(
+                        R.string.permission_shared_uid_warning,
+                        decision.sharedUidPackages.joinToString(", "),
+                    )
+                }
+
+                // A tap that was already travelling when the prompt appeared must not answer it.
+                button1.isEnabled = false
+                button3.isEnabled = false
+                button1.alpha = 0.5f
+                button3.alpha = 0.5f
+                button1.setOnClickListener {
+                    answer(uid, pid, requestCode, allowed = true, onetime = false)
+                }
+                button3.setOnClickListener {
+                    answer(uid, pid, requestCode, allowed = false, onetime = true)
+                }
+            }
+
+            dialog = MaterialAlertDialogBuilder(this@RequestPermissionActivity)
+                    .setView(binding.root)
+                    .setCancelable(false)
+                    .setOnDismissListener { finish() }
+                    .create()
+            dialog.setCanceledOnTouchOutside(false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Set this before the dialog window is added so the window manager applies it.
+                runCatching { dialog.window?.setHideOverlayWindows(true) }
+            }
+            dialog.setOnShowListener {
+                dialog.window?.decorView?.filterTouchesWhenObscured = true
+                if (!auditShown) {
+                    auditShown = true
+                    AuditLog.record(
+                        this@RequestPermissionActivity,
+                        AuditLog.Action.PERMISSION,
+                        AuditLog.Result.SHOWN,
+                        auditPackage,
+                        auditUid.takeIf { it > 0 },
+                        detail = "prompt",
+                    )
+                }
+                handler.postDelayed(enableAnswerButtons, TAP_GRACE_MS)
+            }
+            try {
+                dialog.show()
+            } catch (e: Throwable) {
+                LOGGER.e(e, "show permission dialog")
+                AuditLog.record(
+                    this@RequestPermissionActivity,
+                    AuditLog.Action.PERMISSION,
+                    AuditLog.Result.DENIED,
                     auditPackage,
                     auditUid.takeIf { it > 0 },
-                    detail = "prompt",
+                    detail = "dialog failed",
                 )
+                setResult(uid, pid, requestCode, allowed = false, onetime = true)
+                finish()
             }
-            handler.postDelayed(enableAnswerButtons, TAP_GRACE_MS)
-        }
-        try {
-            dialog.show()
-        } catch (e: Throwable) {
-            LOGGER.e(e, "show permission dialog")
-            AuditLog.record(
-                this,
-                AuditLog.Action.PERMISSION,
-                AuditLog.Result.DENIED,
-                auditPackage,
-                auditUid.takeIf { it > 0 },
-                detail = "dialog failed",
-            )
-            setResult(uid, pid, requestCode, allowed = false, onetime = true)
-            finish()
         }
     }
 

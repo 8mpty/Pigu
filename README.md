@@ -398,6 +398,13 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - If nothing is listening, the normal connection dialog is replaced with a specific error naming the port and repeating the `adb tcpip` requirement. This is intentionally explicit, not an automatic fallback to discovery.
 - No mDNS, no port scan, no hidden retry: one connect attempt on the exact port the user confirms. No new JVM tests; the path is an activity/UI integration around the existing `AdbStarter`.
 
+**Permission prompt binder wait**
+
+- `RequestPermissionActivity.waitForBinder()` no longer uses `runBlocking` on the main thread with a 5-second timeout in `onCreate`. The wait is now a suspend function inside `lifecycleScope`, so a late binder no longer freezes the UI before the permission dialog appears.
+- The timeout and denial behavior are unchanged: if the server is still unavailable after 5 seconds, the request is recorded as denied and the activity finishes. If the activity is destroyed first, the coroutine is cancelled.
+- This is the only remaining item from the earlier main-thread binder list. `ToggleAllViewHolder` already performs bulk changes off the main thread with progress, and App Management rows already use the cached granted-UID set instead of calling `granted()` per bind.
+- `checkSelfPermission()` still performs its short binder call on the main thread when the coroutine resumes. The expensive 5-second wait is no longer there, but that call has not been moved to a background dispatcher.
+
 **Tests and limits**
 
 - `:manager:testDebugUnitTest` now has **53** tests, including the App Management filter policy and the SDK 36/37 local-network mapping. The previous pass had 50.
