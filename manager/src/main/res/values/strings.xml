@@ -18,6 +18,13 @@
     <string name="home_service_detail_error">The service stopped unexpectedly</string>
     <string name="home_service_detail_starting">Waiting for the service…</string>
     <string name="home_service_detail_stopping">Stopping the service…</string>
+    <string name="home_apps_title">Apps with access</string>
+    <plurals name="home_apps_summary">
+        <item quantity="one">%1$d of %2$d app authorized</item>
+        <item quantity="other">%1$d of %2$d apps authorized</item>
+    </plurals>
+    <string name="home_apps_empty">No apps authorized yet</string>
+    <string name="home_apps_a11y">Apps with access. %1$s. Opens App Management.</string>
     <string name="restart_service">Restart</string>
     <string name="dialog_restart_service_title">Restart Pigu?</string>
     <string name="dialog_restart_service_message">The service will stop and start again using the last working method. Apps lose access for a few seconds. This is the safe way to load a newer server after updating Pigu.</string>

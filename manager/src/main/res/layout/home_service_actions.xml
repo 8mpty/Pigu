@@ -13,7 +13,10 @@
         <ImageView
             android:id="@+id/status_icon"
             style="@style/CardIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:importantForAccessibility="no"
+            android:scaleType="centerInside"
             android:src="@drawable/ic_server_ok_24dp" />
 
         <LinearLayout
@@ -34,7 +37,7 @@
                 android:id="@+id/status_detail"
                 style="@style/CardSummary.Brief"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
+                android:layout_height="wrap_content"
                 tools:text="Shizuku 13.6 · adb" />
 
         </LinearLayout>

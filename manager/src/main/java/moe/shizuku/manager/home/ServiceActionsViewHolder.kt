@@ -34,6 +34,9 @@ class ServiceActionsViewHolder(
         }
     }
 
+    /** The card stays on the normal theme surface; only the state emblem carries the status color. */
+    private val normalTitleColors = binding.statusTitle.textColors
+
     init {
         binding.buttonStop.setOnClickListener {
             val context = it.context
@@ -88,7 +91,7 @@ class ServiceActionsViewHolder(
         val normalDetailColor = binding.statusDetail.textColors.defaultColor
 
         binding.statusTitle.setText(labelRes)
-        binding.statusTitle.setTextColor(color)
+        binding.statusTitle.setTextColor(normalTitleColors)
         binding.statusIcon.setImageResource(iconRes)
         binding.statusIcon.imageTintList = ColorStateList.valueOf(color)
         binding.statusIcon.backgroundTintList =
