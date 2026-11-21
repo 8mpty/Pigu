@@ -17,7 +17,6 @@ import moe.shizuku.manager.audit.AuditLog
 import moe.shizuku.manager.audit.AuditLogSheet
 import moe.shizuku.manager.databinding.HomeActivityBinding
 import moe.shizuku.manager.model.ServiceStatus
-import moe.shizuku.manager.security.AccessPause
 import moe.shizuku.manager.settings.SettingsActivity
 import moe.shizuku.manager.starter.StarterTranscript
 import moe.shizuku.manager.utils.CompanionApp
@@ -110,23 +109,10 @@ class ServiceDoctorActivity : AppBarActivity() {
 
     private fun buildItems(): List<ServiceDoctorItem> {
         val items = mutableListOf<ServiceDoctorItem>()
-        val paused = ShizukuSettings.getAccessPaused()
         val running = lastStatus.isRunning
 
-        when {
-            paused -> items.add(
-                ServiceDoctorItem(
-                    getString(R.string.service_doctor_service_paused),
-                    getString(R.string.service_doctor_service_paused_summary),
-                    DoctorLevel.ERROR,
-                    getString(R.string.service_doctor_action_resume),
-                    onAction = {
-                        AccessPause.resume(this)
-                        refresh()
-                    },
-                )
-            )
-            running -> items.add(
+        if (running) {
+            items.add(
                 ServiceDoctorItem(
                     getString(R.string.service_doctor_service_running),
                     if (lastStatus.uid == 0) {
@@ -137,7 +123,8 @@ class ServiceDoctorActivity : AppBarActivity() {
                     DoctorLevel.OK,
                 )
             )
-            else -> items.add(
+        } else {
+            items.add(
                 ServiceDoctorItem(
                     getString(R.string.service_doctor_service_stopped),
                     if (ShizukuSettings.getManuallyStopped()) {

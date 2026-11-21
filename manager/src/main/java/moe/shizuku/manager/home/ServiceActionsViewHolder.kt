@@ -68,12 +68,6 @@ class ServiceActionsViewHolder(
     override fun onBind() {
         val status = data ?: ServiceStatus()
         val state = ShizukuStateMachine.get()
-        val paused = ShizukuSettings.getAccessPaused()
-        if (paused) {
-            itemView.isVisible = false
-            return
-        }
-        itemView.isVisible = true
 
         val (labelRes, iconRes, colorRes) = when (state) {
             ShizukuStateMachine.State.RUNNING ->

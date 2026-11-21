@@ -28,8 +28,6 @@ object AuditLog {
         PERMISSION("permission"),
         GRANT("grant"),
         REVOKE("revoke"),
-        PAUSE("pause"),
-        RESUME("resume"),
         AUTOMATION_START("automation_start"),
         AUTOMATION_STOP("automation_stop"),
         COMPANION("companion"),
@@ -189,8 +187,6 @@ object AuditLog {
         Action.PERMISSION -> "permission"
         Action.GRANT -> "grant"
         Action.REVOKE -> "revoke"
-        Action.PAUSE -> "pause"
-        Action.RESUME -> "resume"
         Action.AUTOMATION_START -> "automation start"
         Action.AUTOMATION_STOP -> "automation stop"
         Action.COMPANION -> "companion"

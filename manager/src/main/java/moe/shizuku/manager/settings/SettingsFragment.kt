@@ -53,7 +53,6 @@ import moe.shizuku.manager.ktx.setComponentEnabled
 import moe.shizuku.manager.receiver.BootCompleteReceiver
 import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
-import moe.shizuku.manager.security.AccessPause
 import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.PhantomProcessControl
 import moe.shizuku.manager.utils.SettingsHelper
@@ -71,7 +70,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     private lateinit var startOnBootPreference: TwoStatePreference
     private lateinit var watchdogPreference: TwoStatePreference
-    private lateinit var accessPausedPreference: TwoStatePreference
     private lateinit var accessLogPreference: Preference
     private lateinit var revokeAllGrantsPreference: Preference
     private lateinit var tcpModePreference: Preference
@@ -105,7 +103,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
         startOnBootPreference = findPreference(KEY_START_ON_BOOT)!!
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
-        accessPausedPreference = findPreference(KEY_ACCESS_PAUSED)!!
         accessLogPreference = findPreference(KEY_ACCESS_LOG)!!
         revokeAllGrantsPreference = findPreference(KEY_REVOKE_ALL_GRANTS)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
@@ -179,41 +176,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                             ShizukuSettings.setWatchdog(context, newValue)
                             isChecked = newValue
                         }
-                    }
-                }
-                false
-            }
-        }
-
-        accessPausedPreference.apply {
-            isChecked = ShizukuSettings.getAccessPaused()
-
-            setOnPreferenceChangeListener { _, newValue ->
-                if (newValue is Boolean) {
-                    if (newValue) {
-                        MaterialAlertDialogBuilder(context)
-                            .setTitle(R.string.settings_access_paused_dialog_title)
-                            .setMessage(R.string.settings_access_paused_dialog_message)
-                            .setPositiveButton(R.string.settings_access_paused_enable) { _, _ ->
-                                AccessPause.pause(context)
-                                isChecked = true
-                            }
-                            .setNegativeButton(android.R.string.cancel) { _, _ ->
-                                isChecked = false
-                            }
-                            .show()
-                    } else {
-                        MaterialAlertDialogBuilder(context)
-                            .setTitle(R.string.settings_access_resume_dialog_title)
-                            .setMessage(R.string.settings_access_resume_dialog_message)
-                            .setPositiveButton(R.string.settings_access_resume) { _, _ ->
-                                AccessPause.resume(context)
-                                isChecked = false
-                            }
-                            .setNegativeButton(android.R.string.cancel) { _, _ ->
-                                isChecked = true
-                            }
-                            .show()
                     }
                 }
                 false
@@ -451,9 +413,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         super.onResume()
         preferenceScreen.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
         ShizukuStateMachine.addListener(stateListener)
-        if (::accessPausedPreference.isInitialized) {
-            accessPausedPreference.isChecked = ShizukuSettings.getAccessPaused()
-        }
         refreshPhantomProcessControl()
     }
 

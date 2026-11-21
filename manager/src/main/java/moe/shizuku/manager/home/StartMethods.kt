@@ -31,10 +31,6 @@ object StartMethods {
 
     fun startWireless(activity: FragmentActivity, scope: CoroutineScope) {
         val context = activity
-        if (ShizukuSettings.getAccessPaused()) {
-            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
-            return
-        }
         if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING) {
             Toast.makeText(context, context.getString(R.string.toast_shizuku_already_starting), Toast.LENGTH_SHORT).show()
             return
@@ -99,10 +95,6 @@ object StartMethods {
     }
 
     fun startLocalTcp(context: Context, port: Int) {
-        if (ShizukuSettings.getAccessPaused()) {
-            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
-            return
-        }
         if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING) {
             Toast.makeText(context, R.string.toast_shizuku_already_starting, Toast.LENGTH_SHORT).show()
             return

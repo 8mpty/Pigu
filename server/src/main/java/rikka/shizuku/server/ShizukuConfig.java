@@ -17,13 +17,6 @@ public class ShizukuConfig {
     @SerializedName("packages")
     public List<PackageEntry> packages = new ArrayList<>();
 
-    /**
-     * When true, every client except the manager is denied at the binder boundary. The grants
-     * themselves are kept, so resuming restores access without asking again.
-     */
-    @SerializedName("access_paused")
-    public boolean accessPaused = false;
-
     public static class PackageEntry extends ConfigPackageEntry {
 
         @SerializedName("uid")

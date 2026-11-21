@@ -30,10 +30,6 @@ object AdbStarter {
             command(cmd) { log?.invoke(String(it)) }
         }
 
-        if (ShizukuSettings.getAccessPaused()) {
-            throw IllegalStateException("Pigu is paused")
-        }
-
         ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
         log?.invoke("Starting with wireless adb...\n")
         
@@ -68,9 +64,6 @@ object AdbStarter {
                 }
 
                 suspend fun startOn(port: Int) {
-                    if (ShizukuSettings.getAccessPaused()) {
-                        throw IllegalStateException("Pigu is paused")
-                    }
                     log?.invoke("Connecting on port $port...")
                     connectWithRetry("127.0.0.1", port, key, log).use { client ->
                         log?.invoke("Successfully connected on port $port...\n")

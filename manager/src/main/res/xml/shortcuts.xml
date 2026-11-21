@@ -37,16 +37,4 @@
             android:targetPackage="com.empty.pigu" />
     </shortcut>
 
-    <shortcut
-        android:enabled="true"
-        android:icon="@drawable/ic_pause_24"
-        android:shortcutId="pause_access"
-        android:shortcutLongLabel="@string/shortcut_pause_long"
-        android:shortcutShortLabel="@string/shortcut_pause_short">
-        <intent
-            android:action="com.empty.pigu.action.PAUSE_ACCESS"
-            android:targetClass="moe.shizuku.manager.MainActivity"
-            android:targetPackage="com.empty.pigu" />
-    </shortcut>
-
 </shortcuts>

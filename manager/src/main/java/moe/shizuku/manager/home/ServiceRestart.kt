@@ -20,7 +20,7 @@ import rikka.shizuku.Shizuku
 object ServiceRestart {
 
     fun confirm(activity: FragmentActivity, status: ServiceStatus) {
-        if (!ShizukuStateMachine.isRunning() || ShizukuSettings.getAccessPaused()) return
+        if (!ShizukuStateMachine.isRunning()) return
 
         // The card can be shown before the full ServiceStatus reload finishes. Use the live
         // binder UID in that case so the root/non-root confirmation is still correct.

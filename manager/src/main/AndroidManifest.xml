@@ -188,17 +188,6 @@
         </activity>
 
         <service
-            android:name=".qs.PiguTileService"
-            android:exported="true"
-            android:icon="@drawable/ic_server_ok_24dp"
-            android:label="@string/qs_tile_label"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
-
-        <service
             android:name=".adb.AdbPairingService"
             android:enabled="true"
             android:exported="false"

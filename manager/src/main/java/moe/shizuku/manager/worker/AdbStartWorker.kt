@@ -44,14 +44,6 @@ import moe.shizuku.manager.utils.ShizukuStateMachine
 
 class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        // A worker can already be enqueued when the user pauses. Do not let it start a server
-        // behind the pause card.
-        if (ShizukuSettings.getAccessPaused()) {
-            val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.cancel(ShizukuReceiverStarter.NOTIFICATION_ID)
-            nm.cancel(NOTIFICATION_ID)
-            return Result.success()
-        }
         try {
             updateNotification(
                 applicationContext,

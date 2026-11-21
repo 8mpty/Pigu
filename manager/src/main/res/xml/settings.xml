@@ -27,11 +27,6 @@
         android:key="category_access_control"
         android:title="@string/settings_access_control">
 
-        <SwitchPreferenceCompat
-            android:key="access_paused"
-            android:summary="@string/settings_access_paused_summary"
-            android:title="@string/settings_access_paused" />
-
         <Preference
             android:key="access_log"
             android:persistent="false"

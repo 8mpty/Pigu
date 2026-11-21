@@ -50,7 +50,6 @@ object PiguDiagnostics {
 
         add("Service state", ShizukuStateMachine.get().name)
         add("Service running", status.isRunning)
-        add("App access paused", enabled(ShizukuSettings.getAccessPaused()))
         add("Manually stopped", if (ShizukuSettings.getManuallyStopped()) "yes" else "no")
         add("Server started this boot", if (ShizukuSettings.wasServerStartedThisBoot(context)) "yes" else "no")
         if (status.isRunning) {

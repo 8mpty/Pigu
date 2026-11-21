@@ -2,7 +2,6 @@ package moe.shizuku.manager.utils
 
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
@@ -38,10 +37,6 @@ object RootWarning {
     }
 
     fun startRoot(context: Context) {
-        if (ShizukuSettings.getAccessPaused()) {
-            Toast.makeText(context, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
-            return
-        }
         confirm(context) {
             context.startActivity(
                 Intent(context, StarterActivity::class.java).apply {

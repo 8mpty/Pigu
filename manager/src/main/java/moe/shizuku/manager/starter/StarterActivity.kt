@@ -115,11 +115,6 @@ class StarterActivity : AppBarActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && !hasStarted) {
             hasStarted = true
-            if (ShizukuSettings.getAccessPaused()) {
-                Toast.makeText(this, R.string.access_pause_start_blocked, Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
             val root = intent.getBooleanExtra(EXTRA_IS_ROOT, false)
             if (root && !RootWarning.isAcknowledged()) {
                 Toast.makeText(this, R.string.root_warning_background_blocked, Toast.LENGTH_LONG).show()

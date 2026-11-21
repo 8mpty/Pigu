@@ -21,9 +21,8 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root. A wireless-debugging pairing appears as **Pigu** in Android's Paired devices list.
 - **Direct launch to the home screen:** no first-run setup pass; permissions are requested only when the relevant flow needs them.
 - **Start / stop control** from the home screen: stop has a confirmation. To restart, stop and start again; there is no one-tap Restart button.
-- **Quick Settings tile and long-press shortcuts** for pause/resume, starting the service, App Management, and the Developer page. The tile is a pause switch, never a kill-all-clients button.
-- **Global pause / kill switch** that stops the service, keeps app grants, and blocks every start path until resumed.
-- **Access control settings category** for pause, the local access log, and a confirmed “revoke all app grants” action.
+- **Long-press shortcuts** for starting the service, App Management, and the Developer page.
+- **Access control settings category** for the local access log and a confirmed “revoke all app grants” action.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.
 - **Option to keep wireless debugging on** after connecting, with a warning about the security trade-off.
 - **Two-layer watchdog:** the manager restarts a dead service, and the server exits itself when its main thread hangs or a required system service disappears.
@@ -33,7 +32,7 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **Automation intents** for Tasker, MacroDroid, Automate, etc. Manual START may run over mobile data; boot and watchdog recovery still wait for an unmetered network.
 - **Start over local TCP** from Pairing methods: enter a port, skip mDNS, and connect to `127.0.0.1` if adb is already listening. No Wi-Fi or local-network permission is used, but the port must already be open.
 - **Copy diagnostics** and a **Service Doctor** checklist on the Developer page for privacy-conscious bug reports and common start failures.
-- **Local access log** of permission prompts, grants/revokes, pause/resume, automation starts/stops, and companion installs. It is a 400-entry ring buffer, stored only on the device, and excluded from backup.
+- **Local access log** of permission prompts, grants/revokes, automation starts/stops, and companion installs. It is a 400-entry ring buffer, stored only on the device, and excluded from backup.
 - **Root-mode warning** at the first root start and a persistent home banner while the service runs as root.
 - **App discovery** that lists every app declaring the Shizuku permission, with a per-app hint when an older client may need the companion.
 - **App Management search, filters, sorting and per-app details** (UID/user, version, client type, last request, access toggle, open app and app info).
@@ -259,19 +258,7 @@ The second phase makes recovery work in the cases where “the binder died” is
 
 ### Phase 2 security and control
 
-The third phase adds the controls that need more than a manager-side preference: a real pause at the server boundary, app discovery, an explicit phantom-process opt-in, and a more patient wireless port retry.
-
-**Global pause / kill switch**
-
-- The server now stores `access_paused` in its own configuration. While it is set, every binder transaction from a client other than the manager is rejected, including `attachApplication`, permission requests, `newProcess`, user services, and `transactRemote`. The manager can still read and clear the flag, and an explicit stop still works.
-- The manager exposes **Settings → Pause app access** and a **Pigu is paused** card on the home screen with a **Resume** action.
-- Pausing stops the running service, keeps every app grant, and blocks the watchdog, boot receiver, automation intents, the starter screen, and the ADB worker. Resuming clears the flag and restarts the service only if it was running when the pause began.
-- The pause flag is written synchronously before the server can exit. A server started later with the pause still saved re-applies it when the manager receives the new binder.
-
-**Paused vs stopped**
-
-- **Stopped** means the server process is not running. App grants and normal start paths remain, and Pigu can start again through Pairing methods. A deliberate Stop suppresses the watchdog until an explicit start.
-- **Paused** is a stronger user-controlled gate: it stops the service, blocks every start path (watchdog, boot, automation, manual, and Starter), keeps grants, and only **Resume** clears it. Use Pause when you want to guarantee no app can reach the service, not just that it is currently off.
+The third phase adds the controls that need more than a manager-side preference: app discovery, an explicit phantom-process opt-in, and a more patient wireless port retry.
 
 - The manager-only `getApplications` transaction is now actually enforced as manager-only. Previously it was handled before the normal permission check, so any attached client could ask for the installed-app slice.
 
@@ -297,19 +284,18 @@ The third phase adds the controls that need more than a manager-side preference:
 **Tests and limits**
 
 - `:manager:testDebugUnitTest` now also covers the port retry schedule's ordering, bounds, and invalid input, plus the discovery summary's companion-candidate count.
-- The pause is a binder-boundary control, not a sandbox. A privileged call that was already executing when the pause was set can finish. An externally started server is paused when the manager receives its binder; if the manager never runs, the saved server flag is the protection. If Pigu was already stopped when you paused, the pause acts as a start gate and cannot write the server flag until a server exists.
 - The companion hint is a heuristic based on `V3_SUPPORT`. A modern client can still hard-code the official package, and a legacy client can work without the companion.
 - Phantom-process control is a global platform workaround. It does not guarantee that Pigu survives an OEM battery manager, and Android may ignore or reset the setting after an update.
 - The wireless retry improvements do not add an endless mDNS hunt. If both the new and original ports fail, the user still has to re-pair or rediscover.
 
 ### Phase 3 access, setup, and diagnostics
 
-This pass is entirely manager-side; there are no server protocol changes. It adds accountability, safer app management, faster access through Quick Settings and shortcuts, a skippable setup flow, a single local-network permission gate, and a checklist for the environmental failures that make Pigu look broken.
+This pass is entirely manager-side; there are no server protocol changes. It adds accountability, safer app management, faster access through shortcuts, a skippable setup flow, a single local-network permission gate, and a checklist for the environmental failures that make Pigu look broken.
 
 **Access log**
 
 - A local ring buffer of the last **400** access events. It is stored in its own `audit_log.xml` preferences file, which is not included by either backup descriptor, so it is not uploaded by cloud backup or device transfer.
-- Recorded events: permission prompt shown, allowed, and denied; single and bulk grants/revokes; pause/resume; automation `START`/`STOP`; companion install attempts and signature conflicts.
+- Recorded events: permission prompt shown, allowed, and denied; single and bulk grants/revokes; automation `START`/`STOP`; companion install attempts and signature conflicts.
 - The Developer page has an **Access log** card that opens a sheet with the newest events first, a **Copy** action, and a **Clear** confirmation.
 - The App Management **Denied** filter shows apps that are not currently granted and whose last recorded permission decision was a denial. It is a view of the log, not a separate persistent denial state: until “remember denial” exists, an app can still ask again, and clearing the log resets the filter.
 - The Service Doctor shows the log count and the number of denied events, and can open the same sheet. The log is a diagnostic aid, not a security boundary; a user with root can edit app data.
@@ -344,7 +330,7 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 **Service Doctor**
 
 - A checklist built from the same checks as diagnostics, with an action for each problem:
-  - service running, paused, deliberately stopped, or stopped
+  - service running, deliberately stopped, or stopped
   - notifications allowed
   - battery optimization
   - local-network permission on Android 16/17
@@ -355,21 +341,19 @@ This pass is entirely manager-side; there are no server protocol changes. It add
   - companion status and signature conflict
   - access-log denials
   - last start result and transcript
-- Actions open the relevant settings, request the local-network permission, request the battery-optimization exemption, start the service, resume a pause, or open the access log.
+- Actions open the relevant settings, request the local-network permission, request the battery-optimization exemption, start the service, or open the access log.
 - **Copy diagnostics** is available from the Service Doctor toolbar.
 - The last Starter transcript is persisted in the app’s private files directory (capped at 64 KB) instead of being lost when the Starter screen closes. The Doctor can show and copy it. The transcript is local-only and can contain paths and ports, so it is not added to the diagnostics snapshot automatically.
 
-**Quick Settings, shortcuts, and restart**
+**Shortcuts and restart**
 
-- A Quick Settings tile shows **Running**, **Paused**, or **Stopped** and toggles pause/resume. It never stops the service, so one accidental tap cannot kill every client app. Grants stay intact, and a second tap resumes.
-- Static long-press shortcuts: **Start service**, **App Management**, **Developer page**, and **Pause access**. Pause asks for confirmation; Start uses the last working method and falls back to wireless discovery.
+- Static long-press shortcuts: **Start service**, **App Management**, and **Developer page**. Start uses the last working method and falls back to wireless discovery.
 - The service card has **Stop** while the service is running. To restart, stop and then use Start service; root and TCP starts are quick, while wireless starts open the Starter flow.
 - Stop-then-start is the way to replace a stale server after a Pigu update. It is not a hot swap; clients lose access for the few seconds between stop and start.
-- The Quick Settings label is refreshed when the panel opens and immediately after a tap. It does not run a live binder observer while the panel is closed.
 
 **Settings access control**
 
-- **Behavior** now contains only start-on-boot and the watchdog. Pause, the access log, and **Revoke all app grants** live in a new **Access control** category. **Networking & ADB** is unchanged.
+- **Behavior** now contains only start-on-boot and the watchdog. The access log and **Revoke all app grants** live in a new **Access control** category. **Networking & ADB** is unchanged.
 - **Revoke all app grants** lists every app that currently has a grant, shows the count in the confirmation, runs off the main thread, and records one bulk audit entry. It does not stop the service and does not revoke Pigu itself.
 - The action requires a running service; without one it explains why instead of failing with a binder error. There is no bulk undo, matching the App Management bulk-action policy.
 
@@ -388,7 +372,7 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 
 **Manual start over mobile data**
 
-- Manual and automation starts no longer inherit the old unconditional “wait for an unmetered network” rule. `AdbStartWorker` now takes an explicit `allowMetered` flag; `ManualStartReceiver`, the notification’s **Attempt now** action, and pause→resume pass `true`, while boot and watchdog recovery keep waiting for Wi-Fi.
+- Manual and automation starts no longer inherit the old unconditional “wait for an unmetered network” rule. `AdbStartWorker` now takes an explicit `allowMetered` flag; `ManualStartReceiver` and the notification’s **Attempt now** action pass `true`, while boot and watchdog recovery keep waiting for Wi-Fi.
 - This restores the behavior introduced by the earlier “intent only working on wifi” fix: a manual `START` intent may run over mobile data when no Wi-Fi network is available.
 - The worker still has to resolve the wireless-debugging port. Mobile carriers can block multicast, and Android 16/17 still requires the local-network permission, so the permission gate and the Starter timeout remain unchanged. If mDNS cannot resolve, the Starter screen reports the timeout instead of silently waiting.
 
@@ -410,11 +394,10 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 **UI polish for mobile and TV**
 
 - The home app bar is back to the standard **Pigu** title. The service card carries the color and status instead.
-- The service card now shows a tinted status icon, a colored **Running / Stopped / Error** title, and a detail line: version and `adb`/`root` mode while running, “Service is not running” when stopped, or the error state.
+- The service card now shows a state-colored status emblem, a normal **Running / Stopped / Error** title, and a detail line: version and `adb`/`root` mode while running, “Service is not running” when stopped, or the error state.
 - While running it shows **Stop**, plus a **Pairing methods** link icon. When stopped or errored it shows a full-width **Start service** button and no link icon, because the Start button already opens the start-methods screen. The old Pairing methods card is hidden for now.
-- The card is hidden only while the global pause is active, because the dedicated pause card already provides **Resume**. During **Starting** and **Stopping** it shows the transition state without action buttons.
-- The paused card is now vertical: the explanation uses the full card width and **Resume** is a full-width button, instead of squeezing the text next to the button.
-- A compact **Apps with access** summary sits below the service card while the service is running. It shows a count such as `9 of 14 apps authorized`; tapping it opens App Management. The card is hidden while stopped or paused, where the service card is the only action that matters. The service card uses the same surface as every other card; only its status emblem changes color.
+- During **Starting** and **Stopping** the card shows the transition state without action buttons.
+- A compact **Apps with access** summary sits below the service card while the service is running. It shows a count such as `9 of 14 apps authorized`; tapping it opens App Management. The card is hidden while stopped, where the service card is the only action that matters. The service card uses the same surface as every other card; only its status emblem changes color.
 - The **App & service details** card toggles locally in the view holder instead of going through `notifyItemChanged()`, so repeated expand/collapse taps are immediate and reliable. Its expanded state still survives service/app refreshes and rotation, and the card remains a single focusable target for TV remote navigation.
 - `HomeViewModel` publishes a cheap status snapshot before the slow SELinux/permission checks. Binder callbacks are marshalled to the main thread before touching the adapter, and `onResume` reconciles a stale `STOPPED` state, so the service card updates immediately after stop/start instead of several seconds later or not at all.
 - Pairing methods applies bottom/start/end insets to its scrolling content, keeping the last card reachable above the navigation bar.
@@ -430,9 +413,9 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - There is no persistent “Deny” state yet: the **Denied** filter combines “not currently granted” with “last request denied.” Adding remembered denial would change the permission flow and is a separate decision.
 - Root background starts now require one UI acknowledgement. This is a deliberate security trade-off, not an oversight.
 - The App Management bulk operations only touch the visible/filtered list, and undo is only offered for a single revoke.
-- Runtime checks on a **Vivo V2465A (Android 16)** over wireless ADB confirmed the restored **Pigu** title, the rich service card for **Running** and **Stopped** (status icon/title, version/mode detail, Stop or Start service), the **Pairing methods** link icon visible only while running and opening the methods screen, the hidden Pairing methods card, the full-width paused/Resume layout, rapid expand/collapse taps without a rebind race, the card updating within about half a second after stop/start, Developer section headings, and the two-column/tablet layout (simulated with `wm size`/`wm density`, then restored). The **Error** card, QS tile, shortcuts, restart flow, sheets, chips, root banner, Service Doctor actions, and actual TV overscan/remote behavior still need dedicated checks.
+- Runtime checks on a **Vivo V2465A (Android 16)** over wireless ADB confirmed the restored **Pigu** title, the rich service card for **Running** and **Stopped** (status icon/title, version/mode detail, Stop or Start service), the **Pairing methods** link icon visible only while running and opening the methods screen, the hidden Pairing methods card, rapid expand/collapse taps without a rebind race, the card updating within about half a second after stop/start, Developer section headings, and the two-column/tablet layout (simulated with `wm size`/`wm density`, then restored). The **Error** card, shortcuts, restart flow, sheets, chips, root banner, Service Doctor actions, and actual TV overscan/remote behavior still need dedicated checks.
 - A CPH2791 (Android 16) run confirmed the **Apps with access** summary, its authorized count, and tapping it to open App Management.
-- The Quick Settings tile refreshes when the panel opens and after a tap; it does not keep a live binder observer while closed. The static shortcuts embed the `com.empty.pigu` application ID, so changing the application ID requires updating `res/xml/shortcuts.xml`.
+- The static shortcuts embed the `com.empty.pigu` application ID, so changing the application ID requires updating `res/xml/shortcuts.xml`.
 - Restarting is a manual stop-then-start, not a hot swap. If the Starter screen is canceled or the new start fails, the service stays stopped until the user starts it again.
 - If notifications are denied, the worker still cannot post the local-network notification; the user must open Pigu and start from **Pairing methods**.
 - Lint has the pre-existing manager errors (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The changed files add no new lint errors.

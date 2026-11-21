@@ -182,7 +182,6 @@ class WatchdogService : Service() {
 
     private fun checkServerAndRestartIfDead() {
         if (destroyed) return
-        if (ShizukuSettings.getAccessPaused()) return
         if (ShizukuSettings.getManuallyStopped()) return
 
         // Observe first: a live binder is worth recording even if this boot did not record a
@@ -234,7 +233,6 @@ class WatchdogService : Service() {
 
     private fun attemptRestart(reason: String) {
         if (destroyed) return
-        if (ShizukuSettings.getAccessPaused()) return
         if (ShizukuSettings.getManuallyStopped()) return
         if (!canRecover()) return
         if (ShizukuReceiverStarter.isStartInFlight()) {

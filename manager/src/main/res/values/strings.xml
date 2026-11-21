@@ -202,22 +202,12 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="qs_tile_label">Pigu access</string>
-    <string name="qs_tile_pause">Pause access</string>
-    <string name="qs_tile_resume">Resume access</string>
-    <string name="qs_tile_state_running">Running</string>
-    <string name="qs_tile_state_paused">Paused</string>
-    <string name="qs_tile_state_stopped">Stopped</string>
-    <string name="qs_tile_paused">App access paused</string>
-    <string name="qs_tile_resumed">App access resumed</string>
     <string name="shortcut_start_service_short">Start service</string>
     <string name="shortcut_start_service_long">Start Pigu service</string>
     <string name="shortcut_app_management_short">App Management</string>
     <string name="shortcut_app_management_long">Open App Management</string>
     <string name="shortcut_developer_short">Developer</string>
     <string name="shortcut_developer_long">Open Developer page</string>
-    <string name="shortcut_pause_short">Pause access</string>
-    <string name="shortcut_pause_long">Pause all app access</string>
     <string name="shortcut_service_already_running">Pigu is already running.</string>
     <string name="local_network_permission_denied">Local network access is required to find wireless debugging and pairing services. Allow it when prompted, or in Android settings.</string>
     <string name="local_network_notification_channel">Local network access</string>
@@ -227,7 +217,7 @@
     <string name="settings_behavior">Behavior</string>
     <string name="settings_access_control">Access control</string>
     <string name="settings_access_log">Access log</string>
-    <string name="settings_access_log_summary">Review permission, grant, pause, and automation events. Local only.</string>
+    <string name="settings_access_log_summary">Review permission, grant, and automation events. Local only.</string>
     <string name="settings_revoke_all_grants">Revoke all app grants</string>
     <string name="settings_revoke_all_grants_summary">Every app must request access again. No undo; requires a running service.</string>
     <string name="settings_revoke_all_grants_title">Revoke all app grants?</string>
@@ -250,19 +240,6 @@
     <string name="settings_use_system_color">Use system theme color</string>
     <string name="settings_watchdog">Watchdog</string>
     <string name="settings_watchdog_summary">Automatically restart Shizuku if it crashes</string>
-    <string name="settings_access_paused">Pause app access</string>
-    <string name="settings_access_paused_summary">Stop the service, keep app grants, and block every automatic start until you resume</string>
-    <string name="settings_access_paused_dialog_title">Pause all app access?</string>
-    <string name="settings_access_paused_dialog_message">Pigu will reject every app, stop the running service, and block the watchdog, boot, automation, and manual starts until you resume.\n\nApp grants are kept, so resuming does not ask for permission again. Apps will fail while Pigu is paused.</string>
-    <string name="settings_access_paused_enable">Pause access</string>
-    <string name="settings_access_paused_already">Pigu is already paused.</string>
-    <string name="settings_access_resume_dialog_title">Resume app access?</string>
-    <string name="settings_access_resume_dialog_message">Pigu will clear the pause. If the service was running when you paused, it will try to start it again using the last start method.</string>
-    <string name="settings_access_resume">Resume access</string>
-    <string name="home_pause_title">Pigu is paused</string>
-    <string name="home_pause_summary">App access is paused. Grants are kept, but apps cannot use the service until you resume.</string>
-    <string name="home_pause_resume">Resume</string>
-    <string name="access_pause_start_blocked">Pigu is paused. Resume app access first.</string>
     <string name="settings_tcp_mode">TCP mode</string>
     <string name="settings_tcp_mode_summary_on">On · port %1$d · tap to change</string>
     <string name="settings_tcp_mode_summary_off">Off · tap to choose a port</string>
@@ -530,7 +507,6 @@
     <string name="service_doctor_copy_diagnostics">Copy diagnostics</string>
     <string name="service_doctor_refresh">Refresh</string>
     <string name="service_doctor_action_open">Open</string>
-    <string name="service_doctor_action_resume">Resume</string>
     <string name="service_doctor_action_start">Start</string>
     <string name="service_doctor_action_fix">Fix</string>
     <string name="service_doctor_action_grant">Grant</string>
@@ -538,8 +514,6 @@
     <string name="service_doctor_action_app_info">App info</string>
     <string name="service_doctor_action_view">View</string>
     <string name="service_doctor_action_retry">Retry</string>
-    <string name="service_doctor_service_paused">Access is paused</string>
-    <string name="service_doctor_service_paused_summary">Every client is blocked until you resume access.</string>
     <string name="service_doctor_service_running">Service is running</string>
     <string name="service_doctor_service_running_root">Running as root. Authorized apps can execute root commands.</string>
     <string name="service_doctor_service_running_adb">Running as adb (UID %1$d).</string>
