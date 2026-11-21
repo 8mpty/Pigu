@@ -18,7 +18,7 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 
 ## Features
 
-- **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root.
+- **Three ways to start the service:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root. A wireless-debugging pairing appears as **Pigu** in Android's Paired devices list.
 - **Direct launch to the home screen:** no first-run setup pass; permissions are requested only when the relevant flow needs them.
 - **Start / stop control** from the home screen: stop has a confirmation. To restart, stop and start again; there is no one-tap Restart button.
 - **Quick Settings tile and long-press shortcuts** for pause/resume, starting the service, App Management, and the Developer page. The tile is a pause switch, never a kill-all-clients button.

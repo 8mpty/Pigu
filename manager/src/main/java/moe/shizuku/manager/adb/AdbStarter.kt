@@ -39,7 +39,7 @@ object AdbStarter {
         
         try {
             withContext(Dispatchers.IO) {
-                val key = runCatching { AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku") }
+                val key = runCatching { AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), AdbKey.KEY_NAME) }
                     .getOrElse {
                         if (it is CancellationException) throw it
                         else throw AdbKeyException(it)
@@ -133,7 +133,7 @@ object AdbStarter {
             }
 
             ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
-            val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku")
+            val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), AdbKey.KEY_NAME)
             withContext(Dispatchers.IO) {
                 connectWithRetry("127.0.0.1", port, key, null).use { client ->
                     client.command("usb:")

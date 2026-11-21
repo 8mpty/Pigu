@@ -42,6 +42,9 @@ class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
 
     companion object {
 
+        /** Shown as the client name in Android's Wireless debugging "Paired devices" list. */
+        const val KEY_NAME = "Pigu"
+
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val ENCRYPTION_KEY_ALIAS = "_adbkey_encryption_key_"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
