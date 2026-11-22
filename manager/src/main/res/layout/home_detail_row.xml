@@ -24,6 +24,6 @@
         android:layout_marginStart="16dp"
         android:gravity="end"
         android:textSize="14sp"
-        tools:text="13.7.0" />
+        tools:text="2.0.0" />
 
 </LinearLayout>

@@ -26,10 +26,15 @@ subprojects { subproject ->
     }
 }
 
-def gitCommitCount = Integer.parseInt("git rev-list --count HEAD".execute([], project.rootDir).text.trim())
-def baseVersionName = "13.7.0"
+// Pigu's app version is independent of the Shizuku API/server version (13.6).
+// Bump these three numbers for each Pigu release. Minor and patch must stay in 0..99.
+def piguVersionMajor = 2
+def piguVersionMinor = 0
+def piguVersionPatch = 0
+def piguVersionName = "${piguVersionMajor}.${piguVersionMinor}.${piguVersionPatch}"
+def piguVersionCode = piguVersionMajor * 10000 + piguVersionMinor * 100 + piguVersionPatch
 def isBeta = project.hasProperty("beta")
 ext {
-    versionCode = gitCommitCount
-    versionName = "${baseVersionName}${if (isBeta) "-beta" else ""}"
+    versionCode = piguVersionCode
+    versionName = "${piguVersionName}${if (isBeta) "-beta" else ""}"
 }

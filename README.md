@@ -51,6 +51,17 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **PC mode:** any device with `adb` access.
 - **Start on boot:** available with wireless debugging or root mode.
 
+## Versioning
+
+Pigu uses its own semantic version, independent of the Shizuku API/server version:
+
+- **Pigu app version:** `2.0.0` — the value under **App & service details → Pigu version**.
+- **Shizuku API/server version:** `13.6` — the value on the service card and under **Shizuku version**.
+- **Version code:** `major * 10000 + minor * 100 + patch` (`2.0.0` → `20000`). Minor and patch stay in `0..99`.
+- A `-Pbeta` build appends `-beta` to the displayed version name.
+
+Bump the three numbers in the root `build.gradle` (`piguVersionMajor`, `piguVersionMinor`, `piguVersionPatch`). The API submodule and the `13.6` server compatibility number are not changed by a Pigu release.
+
 ## Companion app
 
 Pigu keeps its own package name, `com.empty.pigu`. Some apps only check for the official Shizuku package, `moe.shizuku.privileged.api`, and refuse to run when it is missing.

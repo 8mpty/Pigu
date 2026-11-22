@@ -19,6 +19,8 @@ import moe.shizuku.manager.ktx.asLink
 import moe.shizuku.manager.ktx.applyTemplateArgs
 import moe.shizuku.manager.utils.CustomTabsHelper
 import moe.shizuku.manager.worker.AdbStartWorker
+import rikka.shizuku.Shizuku
+import rikka.shizuku.ShizukuApiConstants
 
 class BugReportDialog : DialogFragment() {
 
@@ -56,7 +58,8 @@ class BugReportDialog : DialogFragment() {
 
                     Device: ${Build.MANUFACTURER} ${Build.MODEL}
                     Android Version: ${Build.VERSION.RELEASE}
-                    Shizuku Version: ${BuildConfig.VERSION_NAME}
+                    Pigu Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})
+                    Shizuku API Version: ${Shizuku.getLatestServiceVersion()}.${ShizukuApiConstants.SERVER_PATCH_VERSION}
                 """.trimIndent()
 
                 val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(

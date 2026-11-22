@@ -11,6 +11,8 @@ import moe.shizuku.manager.BuildConfig
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.model.ServiceStatus
 import moe.shizuku.manager.starter.StarterTranscript
+import rikka.shizuku.Shizuku
+import rikka.shizuku.ShizukuApiConstants
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,7 +40,11 @@ object PiguDiagnostics {
         builder.append("No auth token, Wi-Fi name, IP address, or app list is included.\n\n")
 
         add("Generated", SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date()))
-        add("App version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        add("Pigu version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        add(
+            "Shizuku API version",
+            "${Shizuku.getLatestServiceVersion()}.${ShizukuApiConstants.SERVER_PATCH_VERSION}",
+        )
         add("Package", context.packageName)
         add("App build", if (BuildConfig.DEBUG) "debug" else "release")
         add("Android", "${oneLine(Build.VERSION.RELEASE)} (API ${Build.VERSION.SDK_INT})")
