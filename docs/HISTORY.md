@@ -244,6 +244,14 @@ This pass is entirely manager-side; there are no server protocol changes. It add
 - Lint has the pre-existing manager errors (mostly `Instantiatable` false positives) and 4 server `NewApi` errors. The changed files add no new lint errors.
 - API 35 and below do not require a local-network runtime permission. API 36 and 37 do; code degrades to a notification when a background path cannot request it.
 
+## Accessibility services (2.1.0)
+
+- **Developer → Tools → Accessibility services** lists installed accessibility services in a read-only view. Pigu does not expose an enable/disable switch; services must be enabled in Android's accessibility settings first.
+- An already-enabled service can be pinned for **keep-alive**, with a confirmation that explains the screen/input access risk. Pigu restores pinned services if the system removes them, and can turn accessibility back on for those pinned services.
+- Keep-alive requires `WRITE_SECURE_SETTINGS`; the page shows the exact ADB grant command when it is missing. Pigu's own transient pairing accessibility service is excluded from the list.
+- The keep-alive daemon shares the existing watchdog foreground service, observes `ENABLED_ACCESSIBILITY_SERVICES`, checks on screen-on and on a 60-second heartbeat, re-reads before writing, and backs off after repeated restores. Optional **Start keep-alive on boot** starts the shared service after a reboot.
+- No third-party accessibility service is enabled or disabled by Pigu. The list is informational, and pinning only preserves a service the user already chose.
+
 ## Removed
 
 - The first-run onboarding activity, layout, strings, and completion flag. Pigu now opens directly to the home screen.

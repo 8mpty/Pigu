@@ -19,11 +19,12 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 ## Features
 
 - **Start your way:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root. A wireless-debugging pairing appears as **Pigu** in Android's Paired devices list.
-- **Simple home controls:** start/stop the service with a confirmation, see the service state, authorized-app count, and collapsible Pigu/Shizuku/device details. There is no pause or Quick Settings tile in 2.0.0.
+- **Simple home controls:** start/stop the service with a confirmation, see the service state, authorized-app count, and collapsible Pigu/Shizuku/device details. There is no pause or Quick Settings tile.
 - **Access control:** a hardened permission prompt, App Management with search/filter/sort and per-app details, a local access log, “revoke all app grants,” and a persistent root-mode warning.
 - **Automation:** intents for Tasker, MacroDroid, Automate, etc.; TCP mode; and a direct local-TCP start from Pairing methods.
 - **Reliability:** a two-layer watchdog, bounded restart recovery, start-on-boot, and guards against duplicate or accidental starts.
 - **Diagnostics:** Service Doctor, copyable diagnostics, and the last Starter transcript for bug reports.
+- **Accessibility services (developer tool):** a read-only list under **Developer → Tools**; only a service that is already enabled can be pinned for keep-alive, after an explicit screen/input warning. Pigu never enables or disables services itself.
 - **Compatibility:** Android 7.0+, TV/VR and D-pad support, Android 17 / SDK 37 compatibility, one local-network permission gate, and an English-only UI.
 - **Optional companion:** for apps that hard-code the official Shizuku package name.
 
@@ -48,15 +49,15 @@ The app uses the package id `com.empty.pigu`, and its service is the same Shizuk
 - **PC:** Pigu → **Start service** → **Start by connecting to a computer** → **View command**, then run the command with `adb`.
 - **Root:** Pigu → **Start service** → **Root** (only shown when root is available; confirm the root warning once).
 
-To stop, use **Stop** on the home card. To restart, stop and then start again. Pigu 2.0.0 has no global pause and no Quick Settings tile; stopping the service is the way to cut access.
+To stop, use **Stop** on the home card. To restart, stop and then start again. Pigu has no global pause and no Quick Settings tile; stopping the service is the way to cut access.
 
 ## Versioning
 
 Pigu uses its own semantic version, independent of the Shizuku API/server version:
 
-- **Pigu app version:** `2.0.0` — the value under **App & service details → Pigu version**.
+- **Pigu app version:** `2.1.0` — the value under **App & service details → Pigu version**.
 - **Shizuku API/server version:** `13.6` — the value on the service card and under **Shizuku version**.
-- **Version code:** `major * 10000 + minor * 100 + patch` (`2.0.0` → `20000`). Minor and patch stay in `0..99`.
+- **Version code:** `major * 10000 + minor * 100 + patch` (`2.1.0` → `20100`). Minor and patch stay in `0..99`.
 - A `-Pbeta` build appends `-beta` to the displayed version name.
 
 Bump the three numbers in the root `build.gradle` (`piguVersionMajor`, `piguVersionMinor`, `piguVersionPatch`). The API submodule and the `13.6` server compatibility number are not changed by a Pigu release.

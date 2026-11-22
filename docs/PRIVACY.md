@@ -12,6 +12,7 @@ Pigu is local-only by design. The details below cover storage, backup exclusions
 - The automation auth token is stored in a separate `secrets` preferences file that is excluded from cloud backup and device transfer. Existing tokens are migrated without being regenerated.
 - The diagnostics snapshot contains app, device, and service state only. It never includes the auth token, Wi-Fi names, IP addresses, app lists, or the Starter transcript.
 - The access log is a local 400-entry ring buffer containing package names, UIDs, timestamps, and action results. It is excluded from cloud backup and device transfer, and can be cleared from the Developer page.
+- Accessibility keep-alive is opt-in. Pigu stores the component IDs you pin and only restores services that were already enabled and explicitly pinned. It can turn accessibility back on for those pinned services; it never enables arbitrary services.
 - The last Starter transcript is stored in the app private files directory, excluded from backup. It can contain paths and ports, is never uploaded, and is only copied when the user taps **Copy** in the Service Doctor.
 - The root-warning acknowledgement is stored in the excluded `secrets` preferences file, so a restored backup does not suppress the warning on another device.
 - The optional phantom-process control changes one global Android setting (`settings_enable_monitor_phantom_procs`). It is off by default, warns before changing anything, verifies the result, and restores Android's default when turned off.
@@ -29,7 +30,7 @@ Pigu is local-only by design. The details below cover storage, backup exclusions
 - **RECEIVE_BOOT_COMPLETED:** start on boot.
 - **FOREGROUND_SERVICE / FOREGROUND_SERVICE_SPECIAL_USE:** keeps the watchdog and starter services alive.
 - **REQUEST_IGNORE_BATTERY_OPTIMIZATIONS:** prevents start-on-boot and watchdog from being killed.
-- **WRITE_SECURE_SETTINGS:** toggles USB/wireless debugging when starting or stopping the service.
+- **WRITE_SECURE_SETTINGS:** toggles USB/wireless debugging when starting or stopping the service, and restores pinned accessibility services when the optional keep-alive is enabled.
 
 The companion declares no permissions.
 

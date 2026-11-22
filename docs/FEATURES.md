@@ -6,6 +6,7 @@ Pigu is a personal Shizuku-compatible manager. This page lists the full feature 
 - **Direct launch to the home screen:** no first-run setup pass; permissions are requested only when the relevant flow needs them.
 - **Start / stop control** from the home screen: stop has a confirmation. To restart, stop and start again; there is no one-tap Restart button.
 - **No global pause or Quick Settings tile:** stopping the service is the way to cut access; there is no one-tap pause switch.
+- **Accessibility services (Developer → Tools):** a read-only list of installed services, with an opt-in keep-alive for services that are already enabled and explicitly pinned. Pigu never provides an enable/disable switch for accessibility services; use Android settings for that.
 - **Long-press shortcuts** for starting the service, App Management, and the Developer page.
 - **Access control settings category** for the local access log and a confirmed “revoke all app grants” action.
 - **TCP mode** (after an ADB-over-Wi-Fi start), so the service can be restarted without Wi-Fi.

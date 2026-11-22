@@ -72,6 +72,9 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <intent>
+            <action android:name="android.accessibilityservice.AccessibilityService" />
+        </intent>
     </queries>
 
     <application
@@ -118,6 +121,11 @@
         <activity
             android:name=".home.DeveloperActivity"
             android:label="@string/developer_title" />
+        <activity
+            android:name=".accessibility.AccessibilityActivity"
+            android:exported="false"
+            android:label="@string/accessibility_services_title"
+            tools:ignore="Instantiatable" />
         <activity
             android:name=".home.ServiceDoctorActivity"
             android:label="@string/service_doctor_title"
@@ -234,6 +242,16 @@
             android:name=".receiver.BootCompleteReceiver"
             android:enabled="false"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".receiver.AccessibilityBootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>

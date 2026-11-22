@@ -29,7 +29,7 @@ subprojects { subproject ->
 // Pigu's app version is independent of the Shizuku API/server version (13.6).
 // Bump these three numbers for each Pigu release. Minor and patch must stay in 0..99.
 def piguVersionMajor = 2
-def piguVersionMinor = 0
+def piguVersionMinor = 1
 def piguVersionPatch = 0
 def piguVersionName = "${piguVersionMajor}.${piguVersionMinor}.${piguVersionPatch}"
 def piguVersionCode = piguVersionMajor * 10000 + piguVersionMinor * 100 + piguVersionPatch

@@ -41,7 +41,9 @@ class ShizukuApplication : Application() {
         LocaleDelegate.defaultLocale = ShizukuSettings.getLocale()
         AppCompatDelegate.setDefaultNightMode(ShizukuSettings.getNightMode())
 
-        if(ShizukuSettings.getWatchdog()) WatchdogService.start(context)
+        if (ShizukuSettings.getWatchdog() || ShizukuSettings.getAccessibilityKeepAlive()) {
+            WatchdogService.reconcile(context)
+        }
     }
 
     override fun onCreate() {

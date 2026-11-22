@@ -17,6 +17,7 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         private const val ID_SECTION_TOOLS = 11L
         private const val ID_TERMINAL = 2L
         private const val ID_AUTOMATION = 3L
+        private const val ID_ACCESSIBILITY = 13L
         private const val ID_SECTION_HELP = 12L
         private const val ID_SERVICE_DOCTOR = 8L
         private const val ID_DIAGNOSTICS = 6L
@@ -50,6 +51,7 @@ class DeveloperAdapter : IdBasedRecyclerViewAdapter(ArrayList()) {
         addItem(DeveloperSectionViewHolder.CREATOR, R.string.developer_section_tools, ID_SECTION_TOOLS)
         addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
         addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
+        addItem(AccessibilityCardViewHolder.CREATOR, null, ID_ACCESSIBILITY)
 
         // Diagnostics and help: fix a problem or report it.
         addItem(DeveloperSectionViewHolder.CREATOR, R.string.developer_section_help, ID_SECTION_HELP)

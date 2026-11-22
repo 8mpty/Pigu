@@ -15,6 +15,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
 import java.lang.annotation.Retention;
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import moe.shizuku.manager.service.WatchdogService;
 import moe.shizuku.manager.receiver.BootCompleteReceiver;
 import moe.shizuku.manager.utils.Token;
@@ -50,6 +52,9 @@ public class ShizukuSettings {
         public static final String KEY_DEVELOPER_OPTIONS = "developer_options";
         public static final String KEY_ROOT_WARNING_ACKNOWLEDGED = "root_warning_acknowledged";
         public static final String KEY_LAST_WATCHDOG_RESTART = "last_watchdog_restart";
+        public static final String KEY_ACCESSIBILITY_KEEP_ALIVE = "accessibility_keep_alive";
+        public static final String KEY_ACCESSIBILITY_AUTO_BOOT = "accessibility_keep_alive_auto_boot";
+        public static final String KEY_ACCESSIBILITY_PINNED = "accessibility_keep_alive_pinned";
     }
 
     private static SharedPreferences sPreferences;
@@ -268,18 +273,14 @@ public class ShizukuSettings {
     }
 
     public static boolean isWatchdogRunning() {
-        return WatchdogService.isRunning();
+        return getWatchdog() && WatchdogService.isRunning();
     }
 
     public static void setWatchdog(Context context, boolean enable) {
         // Persist the user's choice first. Starting/stopping a service is asynchronous, and the
         // preference listener must not briefly show the opposite state.
         setWatchdogPreference(enable);
-        if (enable) {
-            WatchdogService.start(context);
-        } else {
-            WatchdogService.stop(context);
-        }
+        WatchdogService.reconcile(context);
     }
 
     /**
@@ -290,6 +291,39 @@ public class ShizukuSettings {
      */
     public static void setWatchdogPreference(boolean enable) {
         getPreferences().edit().putBoolean(Keys.KEY_WATCHDOG, enable).apply();
+    }
+
+    /** Opt-in keep-alive for accessibility services the user explicitly pinned. */
+    public static boolean getAccessibilityKeepAlive() {
+        return getPreferences().getBoolean(Keys.KEY_ACCESSIBILITY_KEEP_ALIVE, false);
+    }
+
+    public static void setAccessibilityKeepAlive(boolean enable) {
+        getPreferences().edit().putBoolean(Keys.KEY_ACCESSIBILITY_KEEP_ALIVE, enable).apply();
+    }
+
+    public static boolean getAccessibilityAutoBoot() {
+        return getPreferences().getBoolean(Keys.KEY_ACCESSIBILITY_AUTO_BOOT, true);
+    }
+
+    public static void setAccessibilityAutoBoot(boolean enable) {
+        getPreferences().edit().putBoolean(Keys.KEY_ACCESSIBILITY_AUTO_BOOT, enable).apply();
+    }
+
+    public static Set<String> getPinnedAccessibilityServices() {
+        String raw = getPreferences().getString(Keys.KEY_ACCESSIBILITY_PINNED, "");
+        Set<String> result = new LinkedHashSet<>();
+        if (TextUtils.isEmpty(raw)) return result;
+        for (String id : raw.split(":")) {
+            if (!TextUtils.isEmpty(id)) result.add(id);
+        }
+        return result;
+    }
+
+    public static void setPinnedAccessibilityServices(Set<String> services) {
+        getPreferences().edit()
+            .putString(Keys.KEY_ACCESSIBILITY_PINNED, TextUtils.join(":", services))
+            .apply();
     }
 
     public static boolean getTcpMode() {

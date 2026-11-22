@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -17,12 +18,14 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.os.UserManager
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import moe.shizuku.manager.MainActivity
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
+import moe.shizuku.manager.accessibility.AccessibilityControl
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
 import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.SettingsPage
@@ -50,16 +53,19 @@ class WatchdogService : Service() {
     private var stoppingSince = 0L
     private var gaveUpNotified = false
     private var screenReceiverRegistered = false
+    private var accessibilityObserver: ContentObserver? = null
 
     @Volatile
     private var destroyed = false
+
+    private val accessibilityCheckRunnable = Runnable { checkAccessibilityKeepAlive() }
 
     private val stateListener: (ShizukuStateMachine.State) -> Unit = { state ->
         when (state) {
             ShizukuStateMachine.State.CRASHED -> {
                 // A deliberate stop also ends in binder death. Only a death the user did not ask
                 // for is an outage worth reporting and recovering from.
-                if (!ShizukuSettings.getManuallyStopped()) {
+                if (ShizukuSettings.getWatchdog() && !ShizukuSettings.getManuallyStopped()) {
                     showCrashNotification()
                     attemptRestart("crash")
                 }
@@ -83,6 +89,7 @@ class WatchdogService : Service() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_USER_PRESENT) {
                 checkServerAndRestartIfDead()
+                checkAccessibilityKeepAlive()
             }
         }
     }
@@ -95,6 +102,7 @@ class WatchdogService : Service() {
         override fun run() {
             if (destroyed) return
             checkServerAndRestartIfDead()
+            checkAccessibilityKeepAlive()
             if (!destroyed) handler.postDelayed(this, RECOVERY_POLL_MS)
         }
     }
@@ -115,37 +123,58 @@ class WatchdogService : Service() {
             true
         }.getOrDefault(false)
 
+        accessibilityObserver = object : ContentObserver(handler) {
+            override fun onChange(selfChange: Boolean) {
+                if (AccessibilityControl.isSelfWrite()) return
+                handler.removeCallbacks(accessibilityCheckRunnable)
+                handler.postDelayed(accessibilityCheckRunnable, 500L)
+            }
+        }
+        runCatching {
+            contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+                false,
+                accessibilityObserver!!,
+            )
+        }
+
         handler.postDelayed(recoveryRunnable, BINDER_GRACE_MS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP_SERVICE) {
-            // This is the only path that means the user asked to turn the watchdog off.
-            ShizukuSettings.setWatchdogPreference(false)
-            destroyed = true
-            handler.removeCallbacks(recoveryRunnable)
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_STOP_SERVICE -> {
+                // This is the only path that means the user asked to turn the watchdog off.
+                ShizukuSettings.setWatchdogPreference(false)
+                if (!accessibilityActive()) {
+                    stopServiceNow()
+                    return START_NOT_STICKY
+                }
+            }
+            ACTION_STOP_ACCESSIBILITY -> {
+                ShizukuSettings.setAccessibilityKeepAlive(false)
+                ShizukuSettings.setPinnedAccessibilityServices(emptySet())
+                if (!ShizukuSettings.getWatchdog()) {
+                    stopServiceNow()
+                    return START_NOT_STICKY
+                }
+            }
         }
         destroyed = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                NOTIFICATION_ID_WATCHDOG,
-                buildNotification(),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            )
-        } else {
-            startForeground(
-                NOTIFICATION_ID_WATCHDOG,
-                buildNotification()
-            )
+        if (!ShizukuSettings.getWatchdog() && !accessibilityActive()) {
+            stopServiceNow()
+            return START_NOT_STICKY
         }
+        startForegroundCompat(buildNotification())
         return START_STICKY
     }
 
     override fun onDestroy() {
         destroyed = true
         handler.removeCallbacks(recoveryRunnable)
+        handler.removeCallbacks(accessibilityCheckRunnable)
+        accessibilityObserver?.let { runCatching { contentResolver.unregisterContentObserver(it) } }
+        accessibilityObserver = null
         ShizukuStateMachine.removeListener(stateListener)
         if (screenReceiverRegistered) {
             runCatching { unregisterReceiver(screenOnReceiver) }
@@ -155,6 +184,25 @@ class WatchdogService : Service() {
         // Do not write the preference here. onDestroy also runs when the system or the user swipes
         // the app away; only an explicit stop should disable the watchdog.
         super.onDestroy()
+    }
+
+    private fun stopServiceNow() {
+        destroyed = true
+        handler.removeCallbacks(recoveryRunnable)
+        handler.removeCallbacks(accessibilityCheckRunnable)
+        stopSelf()
+    }
+
+    private fun startForegroundCompat(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID_WATCHDOG,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID_WATCHDOG, notification)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -180,8 +228,19 @@ class WatchdogService : Service() {
         }
     }
 
+    private fun checkAccessibilityKeepAlive() {
+        if (destroyed) return
+        if (!accessibilityActive()) return
+        if (!isUserUnlocked()) return
+        val restored = AccessibilityControl.restorePinned(this)
+        if (restored.isNotEmpty()) {
+            Log.i(TAG, "Restored pinned accessibility services: $restored")
+        }
+    }
+
     private fun checkServerAndRestartIfDead() {
         if (destroyed) return
+        if (!ShizukuSettings.getWatchdog()) return
         if (ShizukuSettings.getManuallyStopped()) return
 
         // Observe first: a live binder is worth recording even if this boot did not record a
@@ -233,6 +292,7 @@ class WatchdogService : Service() {
 
     private fun attemptRestart(reason: String) {
         if (destroyed) return
+        if (!ShizukuSettings.getWatchdog()) return
         if (ShizukuSettings.getManuallyStopped()) return
         if (!canRecover()) return
         if (ShizukuReceiverStarter.isStartInFlight()) {
@@ -270,8 +330,10 @@ class WatchdogService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val channelId = "shizuku_watchdog"
-        val channelName = "Watchdog"
+        val watchdog = ShizukuSettings.getWatchdog()
+        val keepAlive = accessibilityActive()
+        val channelId = if (watchdog) WATCHDOG_CHANNEL_ID else ACCESSIBILITY_CHANNEL_ID
+        val channelName = if (watchdog) "Watchdog" else "Accessibility keep-alive"
 
         val channel = NotificationChannel(
             channelId,
@@ -298,18 +360,50 @@ class WatchdogService : Service() {
         val stopPendingIntent = PendingIntent.getService(
             this, 1, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val stopAccessibilityIntent = Intent(this, WatchdogService::class.java).apply {
+            action = ACTION_STOP_ACCESSIBILITY
+        }
+        val stopAccessibilityPendingIntent = PendingIntent.getService(
+            this, 2, stopAccessibilityIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
-        return NotificationCompat.Builder(this, channelId)
-            .setContentTitle(getString(R.string.watchdog_running))
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(
+                getString(
+                    when {
+                        watchdog && keepAlive -> R.string.background_running_title
+                        watchdog -> R.string.watchdog_running
+                        else -> R.string.accessibility_keep_alive_notification_title
+                    }
+                )
+            )
             .setSmallIcon(R.drawable.ic_system_icon)
             .setContentIntent(launchPendingIntent)
-            .addAction(
+            .setOngoing(true)
+
+        if (watchdog && keepAlive) {
+            builder.setContentText(getString(R.string.background_running_text))
+        } else if (keepAlive) {
+            builder.setContentText(getString(R.string.accessibility_keep_alive_notification_text))
+        }
+
+        if (watchdog) {
+            builder.addAction(
                 R.drawable.ic_close_24,
                 getString(R.string.watchdog_turn_off),
-                stopPendingIntent
+                stopPendingIntent,
             )
-            .setOngoing(true)
-            .build()
+        }
+        if (keepAlive) {
+            builder.addAction(
+                R.drawable.ic_close_24,
+                getString(R.string.accessibility_keep_alive_turn_off),
+                stopAccessibilityPendingIntent,
+            )
+        }
+
+        return builder.build()
     }
 
     private fun showCrashNotification() {
@@ -385,10 +479,13 @@ class WatchdogService : Service() {
     companion object {
         private const val TAG = "ShizukuWatchdog"
         private const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
+        private const val ACTION_STOP_ACCESSIBILITY = "ACTION_STOP_ACCESSIBILITY"
         private const val NOTIFICATION_ID_WATCHDOG = 1001
         private const val NOTIFICATION_ID_CRASH = 1002
         private const val NOTIFICATION_ID_GAVE_UP = 1003
         const val CRASH_CHANNEL_ID = "crash_reports"
+        private const val WATCHDOG_CHANNEL_ID = "shizuku_watchdog"
+        private const val ACCESSIBILITY_CHANNEL_ID = "accessibility_keep_alive"
 
         /** Give the sticky binder a moment to arrive before probing. */
         private const val BINDER_GRACE_MS = 3_000L
@@ -411,10 +508,19 @@ class WatchdogService : Service() {
 
         private val isRunning = AtomicBoolean(false)
 
+        private fun accessibilityActive(): Boolean =
+            ShizukuSettings.getAccessibilityKeepAlive() &&
+                ShizukuSettings.getPinnedAccessibilityServices().isNotEmpty()
+
         @JvmStatic
         fun start(context: Context) {
             try {
-                context.startForegroundService(Intent(context, WatchdogService::class.java))
+                val intent = Intent(context, WatchdogService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
             } catch (e: Exception) {
                 Log.e("ShizukuApplication", "Failed to start WatchdogService: ${e.message}" )
             }
@@ -423,6 +529,16 @@ class WatchdogService : Service() {
         @JvmStatic
         fun stop(context: Context) {
             context.stopService(Intent(context, WatchdogService::class.java))
+        }
+
+        /** Keeps the service alive only while at least one background feature needs it. */
+        @JvmStatic
+        fun reconcile(context: Context) {
+            if (ShizukuSettings.getWatchdog() || accessibilityActive()) {
+                start(context)
+            } else {
+                stop(context)
+            }
         }
 
         @JvmStatic
