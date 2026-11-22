@@ -1,0 +1,34 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace = "com.empty.pigu.companion"
+    defaultConfig {
+        applicationId = "moe.shizuku.privileged.api"
+        versionCode = rootProject.ext.versionCode
+        versionName = rootProject.ext.versionName
+    }
+    buildFeatures {
+        buildConfig = false
+    }
+    signingConfigs {
+        sign {}
+    }
+    buildTypes {
+        debug {
+            signingConfig = signingConfigs.sign
+        }
+        release {
+            signingConfig = signingConfigs.sign
+        }
+    }
+}
+
+android.applicationVariants.all { variant ->
+    variant.outputs.all {
+        outputFileName = "pigu-companion-${variant.name}.apk"
+    }
+}
+
+apply from: rootProject.file("signing.gradle")

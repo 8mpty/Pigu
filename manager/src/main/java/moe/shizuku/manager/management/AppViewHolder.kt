@@ -1,35 +1,33 @@
 package moe.shizuku.manager.management
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageInfo
-import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.content.res.AppCompatResources
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.core.view.isVisible
 import kotlinx.coroutines.Job
-import moe.shizuku.manager.Helps
 import moe.shizuku.manager.R
 import moe.shizuku.manager.authorization.AuthorizationManager
-import moe.shizuku.manager.databinding.AppListItemBinding
-import moe.shizuku.manager.ktx.toHtml
 import moe.shizuku.manager.utils.AppIconCache
+import moe.shizuku.manager.utils.CompanionApp
 import moe.shizuku.manager.utils.ShizukuSystemApis
 import moe.shizuku.manager.utils.UserHandleCompat
-import rikka.html.text.HtmlCompat
 import rikka.recyclerview.BaseViewHolder
 import rikka.recyclerview.BaseViewHolder.Creator
-import rikka.shizuku.Shizuku
+import moe.shizuku.manager.databinding.AppListItemBinding
 
-class AppViewHolder(private val binding: AppListItemBinding) : BaseViewHolder<PackageInfo>(binding.root), View.OnClickListener {
+class AppViewHolder(private val binding: AppListItemBinding) :
+    BaseViewHolder<PackageInfo>(binding.root) {
 
     companion object {
         @JvmField
-        val CREATOR = Creator<PackageInfo> { inflater: LayoutInflater, parent: ViewGroup? -> AppViewHolder(AppListItemBinding.inflate(inflater, parent, false)) }
+        val CREATOR = Creator<PackageInfo> { inflater: LayoutInflater, parent: ViewGroup? ->
+            AppViewHolder(AppListItemBinding.inflate(inflater, parent, false))
+        }
     }
-
 
     private val icon get() = binding.icon
     private val name get() = binding.title
@@ -39,7 +37,20 @@ class AppViewHolder(private val binding: AppListItemBinding) : BaseViewHolder<Pa
 
     init {
         itemView.filterTouchesWhenObscured = true
-        itemView.setOnClickListener(this)
+        // The row is a detail affordance; the switch is the only access toggle. This avoids
+        // revoking an app by tapping anywhere on its row.
+        itemView.setOnClickListener {
+            AppDetailSheet.show(itemView.context, data) { uid, granted ->
+                (adapter as? AppsAdapter)?.updateGranted(uid, granted)
+                (itemView.context.findActivity() as? ApplicationManagementActivity)
+                    ?.onAccessChanged(uid, granted)
+                refreshRow()
+            }
+        }
+        switchWidget.filterTouchesWhenObscured = true
+        switchWidget.isClickable = true
+        switchWidget.isFocusable = true
+        switchWidget.setOnClickListener { toggleAccess() }
     }
 
     private inline val packageName get() = data.packageName
@@ -48,37 +59,42 @@ class AppViewHolder(private val binding: AppListItemBinding) : BaseViewHolder<Pa
 
     private var loadIconJob: Job? = null
 
-    override fun onClick(v: View) {
-        val context = v.context
-        try {
-            if (AuthorizationManager.granted(packageName, uid)) {
-                AuthorizationManager.revoke(packageName, uid)
-            } else {
-                AuthorizationManager.grant(packageName, uid)
-            }
-        } catch (e: SecurityException) {
-            val uid = try {
-                Shizuku.getUid()
-            } catch (ex: Throwable) {
-                return
-            }
-            if (uid != 0) {
-                val dialog = MaterialAlertDialogBuilder(context)
-                        .setTitle(R.string.app_management_dialog_adb_is_limited_title)
-                        .setMessage(context.getString(R.string.app_management_dialog_adb_is_limited_message, Helps.ADB.get()).toHtml(HtmlCompat.FROM_HTML_OPTION_TRIM_WHITESPACE))
-                        .setPositiveButton(android.R.string.ok, null)
-                        .create()
-                dialog.setOnShowListener {
-                    (it as AlertDialog).findViewById<TextView>(android.R.id.message)?.movementMethod = LinkMovementMethod.getInstance()
-                }
-                try {
-                    dialog.show()
-                } catch (ignored: Throwable) {
-                }
+    private fun toggleAccess() {
+        val context = itemView.context
+        val current = (adapter as? AppsAdapter)?.isGranted(uid)
+            ?: runCatching { AuthorizationManager.granted(packageName, uid) }
+                .getOrDefault(false)
+        val target = !current
+
+        val error = AccessActions.setGranted(context, packageName, uid, target, detail = "single")
+        if (error != null) {
+            switchWidget.isChecked = current
+            AppAccessUi.showError(context, error)
+            return
+        }
+
+        (adapter as? AppsAdapter)?.updateGranted(uid, target)
+        switchWidget.isChecked = target
+        (context.findActivity() as? ApplicationManagementActivity)?.onAccessChanged(uid, target)
+        refreshRow()
+
+        if (!target) {
+            AppAccessUi.showUndo(context, itemView, packageName, uid) {
+                (adapter as? AppsAdapter)?.updateGranted(uid, true)
+                switchWidget.isChecked = true
+                (context.findActivity() as? ApplicationManagementActivity)?.onAccessChanged(uid, true)
+                refreshRow()
             }
         }
-        adapter.notifyItemChanged(adapterPosition, Any())
-        adapter.notifyItemChanged(0)
+    }
+
+    private fun refreshRow() {
+        val position = adapterPosition
+        if (position == androidx.recyclerview.widget.RecyclerView.NO_POSITION || position >= adapter.itemCount) {
+            return
+        }
+        adapter.notifyItemChanged(position, Any())
+        if (adapter.itemCount > 0) adapter.notifyItemChanged(0)
     }
 
     override fun onBind() {
@@ -92,19 +108,46 @@ class AppViewHolder(private val binding: AppListItemBinding) : BaseViewHolder<Pa
             ai.loadLabel(pm)
         }
         pkg.text = ai.packageName
-        switchWidget.isChecked = AuthorizationManager.granted(packageName, uid)
-        root.visibility = if (ai.metaData != null && ai.metaData.getBoolean("moe.shizuku.client.V3_REQUIRES_ROOT")) View.VISIBLE else View.GONE
+        switchWidget.isChecked = (adapter as? AppsAdapter)?.isGranted(uid) ?: false
+        root.visibility =
+            if (ai.metaData != null && ai.metaData.getBoolean("moe.shizuku.client.V3_REQUIRES_ROOT")) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
+
+        // V3 clients attach through the Shizuku provider and normally detect Pigu without the
+        // package stub. Older clients are the ones that most often hard-check the official
+        // package, so only they get the companion hint.
+        val modernClient = ai.metaData?.getBoolean("moe.shizuku.client.V3_SUPPORT") == true
+        binding.companionNote.isVisible =
+            !modernClient && !CompanionApp.isInstalled(context)
 
         loadIconJob = AppIconCache.loadIconBitmapAsync(context, ai, ai.uid / 100000, icon)
     }
 
     override fun onBind(payloads: List<Any>) {
-        switchWidget.isChecked = AuthorizationManager.granted(packageName, uid)
+        switchWidget.isChecked = (adapter as? AppsAdapter)?.isGranted(uid) ?: false
+        binding.requiresRoot.visibility =
+            if (ai.metaData != null && ai.metaData.getBoolean("moe.shizuku.client.V3_REQUIRES_ROOT")) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
     }
 
     override fun onRecycle() {
         if (loadIconJob?.isActive == true) {
             loadIconJob?.cancel()
         }
+    }
+
+    private fun Context.findActivity(): Activity? {
+        var ctx: Context? = this
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return null
     }
 }

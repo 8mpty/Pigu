@@ -151,6 +151,11 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
             }
         });
 
+        // The manager can only see binder death. Watch this process from the inside as well, so
+        // a stuck main thread or a dead core system service becomes a binder death the manager
+        // can recover from instead of a server that looks alive but answers nothing.
+        ServerWatchdog.start(mainHandler);
+
         BinderSender.register(this);
 
         mainHandler.post(() -> {
@@ -205,6 +210,7 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
     public void exit() {
         enforceManagerPermission("exit");
         LOGGER.i("exit");
+        ServerWatchdog.stop();
         System.exit(0);
     }
 
@@ -475,10 +481,11 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
 
                 if (flags != 0) {
                     list.add(pi);
-                } else if (pi.applicationInfo.metaData != null
-                        && pi.applicationInfo.metaData.getBoolean("moe.shizuku.client.V3_SUPPORT", false)
-                        && pi.requestedPermissions != null
+                } else if (pi.requestedPermissions != null
                         && ArraysKt.contains(pi.requestedPermissions, PERMISSION)) {
+                    // This is discovery, not an authorization decision. Include every app that
+                    // declares the Shizuku permission, including older clients that do not set
+                    // V3_SUPPORT, so the manager can explain which apps may need the companion.
                     list.add(pi);
                 }
             }
@@ -489,8 +496,10 @@ public class ShizukuService extends Service<ShizukuUserServiceManager, ShizukuCl
 
     @Override
     public boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
-        //LOGGER.d("transact: code=%d, calling uid=%d", code, Binder.getCallingUid());
         if (code == ServerConstants.BINDER_TRANSACTION_getApplications) {
+            // This transaction is manager-only. It used to be handled before the normal
+            // permission check, which let any attached client ask for the installed-app slice.
+            enforceManagerPermission("getApplications");
             data.enforceInterface(ShizukuApiConstants.BINDER_DESCRIPTOR);
             int userId = data.readInt();
             ParcelableListSlice<PackageInfo> result = getApplications(userId);

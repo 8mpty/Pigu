@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_copy_diagnostics"
+        android:title="@string/service_doctor_copy_diagnostics"
+        android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_refresh"
+        android:title="@string/service_doctor_refresh"
+        android:showAsAction="never" />
+
+</menu>

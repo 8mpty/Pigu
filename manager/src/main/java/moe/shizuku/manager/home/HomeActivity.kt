@@ -2,53 +2,46 @@ package moe.shizuku.manager.home
 
 import android.app.NotificationManager
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
-import android.os.Process
-import android.text.method.LinkMovementMethod
-import android.util.TypedValue
-import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
-import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.AdbPairingService
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.app.SnackbarHelper
-import moe.shizuku.manager.databinding.AboutDialogBinding
 import moe.shizuku.manager.databinding.HomeActivityBinding
-import moe.shizuku.manager.home.showAccessibilityDialog
-import moe.shizuku.manager.ktx.toHtml
 import moe.shizuku.manager.management.AppsViewModel
 import moe.shizuku.manager.settings.SettingsActivity
-import moe.shizuku.manager.utils.AppIconCache
-import moe.shizuku.manager.utils.CustomTabsHelper
 import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.ShizukuStateMachine
-import moe.shizuku.manager.utils.UpdateHelper
-import rikka.core.content.asActivity
 import rikka.core.ktx.unsafeLazy
 import rikka.lifecycle.Status
 import rikka.recyclerview.addEdgeSpacing
 import rikka.recyclerview.addItemSpacing
 import rikka.recyclerview.fixEdgeEffect
-import rikka.shizuku.Shizuku
 
 abstract class HomeActivity : AppBarActivity() {
 
     private val homeModel: HomeViewModel by viewModels()
     private val appsModel: AppsViewModel by viewModels()
-    private val adapter by unsafeLazy { HomeAdapter(homeModel, appsModel, lifecycleScope) }
+    private val adapter by unsafeLazy { HomeAdapter(homeModel, appsModel) }
 
     private val stateListener: (ShizukuStateMachine.State) -> Unit = {
+        // Binder callbacks are not guaranteed to arrive on the main thread. Never touch the
+        // RecyclerView directly from them; post the refresh so it cannot be dropped or delayed.
+        runOnUiThread {
+            if (!isFinishing && !isDestroyed) {
+                adapter.updateData()
+            }
+        }
         if (ShizukuStateMachine.isRunning()) {
             checkServerStatus()
             appsModel.load()
@@ -61,12 +54,25 @@ abstract class HomeActivity : AppBarActivity() {
         super.onCreate(savedInstanceState)
 
         val binding = HomeActivityBinding.inflate(layoutInflater, rootView, true)
+        supportActionBar?.title = getString(R.string.app_name)
 
         homeModel.serviceStatus.observe(this) {
             if (it.status == Status.SUCCESS) {
                 val status = homeModel.serviceStatus.value?.data ?: return@observe
+
+                if (status.isRunning) {
+                    val mode = when {
+                        status.uid == 0 -> ShizukuSettings.LaunchMethod.ROOT
+                        ShizukuSettings.getLastLaunchMode() == ShizukuSettings.LaunchMethod.WIRELESS_ADB ->
+                            ShizukuSettings.LaunchMethod.WIRELESS_ADB
+                        else -> ShizukuSettings.LaunchMethod.ADB
+                    }
+                    ShizukuSettings.setLastLaunchMode(mode)
+                } else if (ShizukuStateMachine.get() != ShizukuStateMachine.State.STARTING) {
+                    ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.UNKNOWN)
+                }
+
                 adapter.updateData()
-                ShizukuSettings.setLastLaunchMode(if (status.uid == 0) ShizukuSettings.LaunchMethod.ROOT else ShizukuSettings.LaunchMethod.ADB)
             }
         }
 
@@ -96,28 +102,11 @@ abstract class HomeActivity : AppBarActivity() {
         }
         homeModel.checkBatteryOptimization()
 
-        appsModel.grantedCount.observe(this) {
-            if (it.status == Status.SUCCESS) {
-                adapter.updateData()
-            }
+        appsModel.packages.observe(this) {
+            if (it.status == Status.SUCCESS) adapter.updateData()
         }
-
-        lifecycleScope.launch {
-            if (UpdateHelper.isCheckForUpdatesEnabled() && UpdateHelper.isNewUpdateAvailable()) {
-                SnackbarHelper.show(
-                    this@HomeActivity,
-                    binding.root,
-                    msg = getString(R.string.snackbar_update_available),
-                    duration = Snackbar.LENGTH_INDEFINITE,
-                    actionText = getString(R.string.snackbar_action_update),
-                    action = {
-                        lifecycleScope.launch {
-                            UpdateHelper.update()
-                        }
-                    }
-                )
-                UpdateHelper.updateLastPromptedVersion()
-            }
+        appsModel.grantedCount.observe(this) {
+            if (it.status == Status.SUCCESS) adapter.updateData()
         }
 
         val recyclerView = binding.list
@@ -136,10 +125,17 @@ abstract class HomeActivity : AppBarActivity() {
         recyclerView.addEdgeSpacing(top = edgeSpacingV, bottom = edgeSpacingV, left = edgeSpacingH, right = edgeSpacingH)
 
         ShizukuStateMachine.addListener(stateListener)
+
+        if (savedInstanceState == null) {
+            handleShortcutIntent(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        handleShortcutIntent(intent)
+
         intent?.let {
             val showDialog = it.getBooleanExtra(HomeActivity.EXTRA_SHOW_PAIRING_DIALOG, false)
             if (showDialog) showAccessibilityDialog()
@@ -148,13 +144,19 @@ abstract class HomeActivity : AppBarActivity() {
             if (startWadb) {
                 val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 nm.cancel(AdbPairingService.NOTIFICATION_ID)
-                StartWirelessAdbViewHolder.start(this, lifecycleScope)
+                StartMethods.startWireless(this, lifecycleScope)
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
+        // Reconcile a stale STOPPED state in case the binder callback arrived while the activity
+        // was stopped. Do not override an in-flight Starting/Stopping transition.
+        if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STOPPED) {
+            ShizukuStateMachine.update()
+        }
+        adapter.updateData()
         checkServerStatus()
         appsModel.load()
     }
@@ -162,6 +164,28 @@ abstract class HomeActivity : AppBarActivity() {
     override fun onPause() {
         super.onPause()
         SnackbarHelper.dismiss()
+    }
+
+    private fun handleShortcutIntent(intent: Intent?) {
+        if (intent?.action == ACTION_START_SERVICE) {
+            intent.action = null
+            startFromShortcut()
+        }
+    }
+
+    private fun startFromShortcut() {
+        if (ShizukuStateMachine.isRunning()) {
+            Toast.makeText(this, R.string.shortcut_service_already_running, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val root = ShizukuSettings.getLastLaunchMode() == ShizukuSettings.LaunchMethod.ROOT &&
+            EnvironmentUtils.isRooted()
+        if (root) {
+            StartMethods.startRoot(this)
+        } else {
+            StartMethods.startWireless(this, lifecycleScope)
+        }
     }
 
     private fun showExitDialog(title: String, message: String) {
@@ -194,59 +218,12 @@ abstract class HomeActivity : AppBarActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_about -> {
-                val binding = AboutDialogBinding.inflate(LayoutInflater.from(this), null, false)
-                binding.sourceCode.movementMethod = LinkMovementMethod.getInstance()
-                binding.sourceCode.text = getString(
-                    R.string.about_view_source_code,
-                    "<b><a href=\"https://github.com/thedjchi/Shizuku\">GitHub</a></b>"
-                ).toHtml()
-                binding.icon.setImageBitmap(
-                    AppIconCache.getOrLoadBitmap(
-                        this,
-                        applicationInfo,
-                        Process.myUid() / 100000,
-                        resources.getDimensionPixelOffset(R.dimen.default_app_icon_size)
-                    )
-                )
-                binding.versionName.text = packageManager.getPackageInfo(packageName, 0).versionName
-
-                binding.btnUpdate.setOnClickListener {
-                    lifecycleScope.launch {
-                        UpdateHelper.checkAndInstallUpdates()
-                    }
-                }
-
-                binding.btnDonate.setOnClickListener {
-                    CustomTabsHelper.launchUrlOrCopy(this, "https://www.buymeacoffee.com/thedjchi")
-                }
-
-                val dialog = MaterialAlertDialogBuilder(this)
-                    .setView(binding.root)
-                    .create()
-
-                binding.btnClose.setOnClickListener {
-                    dialog.dismiss()
-                }
-                
-                dialog.show()
-                true
-            }
-            R.id.action_stop -> {
-                if (ShizukuStateMachine.isRunning()) {
-                    MaterialAlertDialogBuilder(this)
-                        .setMessage(R.string.dialog_stop_message)
-                        .setPositiveButton(android.R.string.ok) { _: DialogInterface?, _: Int ->
-                            ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
-                            runCatching { Shizuku.exit() }
-                        }
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show()
-                }
-                true
-            }
             R.id.action_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            R.id.action_developer -> {
+                startActivity(Intent(this, DeveloperActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -254,6 +231,8 @@ abstract class HomeActivity : AppBarActivity() {
     }
 
     companion object {
+        const val ACTION_START_SERVICE = "com.empty.pigu.action.START_SERVICE"
+
         const val EXTRA_SHOW_PAIRING_DIALOG = "show_pairing_dialog"
         const val EXTRA_START_SERVICE_VIA_WADB = "start_service_via_wadb"
     }

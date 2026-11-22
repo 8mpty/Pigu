@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="companion_warning">#FFB74D</color>
+    <color name="home_status_running">#81C784</color>
+    <color name="home_status_stopped">#FFB4AB</color>
+    <color name="home_status_warning">#FFB74D</color>
+</resources>

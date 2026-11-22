@@ -1,16 +1,15 @@
 package moe.shizuku.manager.home
 
-import android.os.Build
-import kotlinx.coroutines.CoroutineScope
 import moe.shizuku.manager.management.AppsViewModel
-import moe.shizuku.manager.utils.EnvironmentUtils
-import moe.shizuku.manager.utils.UserHandleCompat
+import moe.shizuku.manager.model.ServiceStatus
+import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.recyclerview.IdBasedRecyclerViewAdapter
 import rikka.recyclerview.IndexCreatorPool
-import rikka.shizuku.Shizuku
 
-class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: AppsViewModel, private val scope: CoroutineScope) :
+class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: AppsViewModel) :
     IdBasedRecyclerViewAdapter(ArrayList()) {
+
+    private var detailsData: DetailsData? = null
 
     init {
         updateData()
@@ -19,16 +18,11 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
 
     companion object {
 
-        private const val ID_STATUS = 0L
-        private const val ID_APPS = 1L
-        private const val ID_TERMINAL = 2L
-        private const val ID_START_ROOT = 3L
-        private const val ID_START_WADB = 4L
-        private const val ID_START_ADB = 5L
-        private const val ID_LEARN_MORE = 6L
+        private const val ID_ACTIONS = 0L
+        private const val ID_ROOT_WARNING = 2L
+        private const val ID_APPS = 5L
+        private const val ID_DETAILS = 4L
         private const val ID_ADB_PERMISSION_LIMITED = 7L
-        private const val ID_AUTOMATION = 8L
-        private const val ID_STEALTH = 9L
     }
 
     override fun onCreateCreatorPool(): IndexCreatorPool {
@@ -36,41 +30,58 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
     }
 
     fun updateData() {
-        val status = homeModel.serviceStatus.value?.data ?: return
-        val grantedCount = appsModel.grantedCount.value?.data ?: 0
-        val adbPermission = status.permission
-        val running = status.isRunning
-        val isPrimaryUser = UserHandleCompat.myUserId() == 0
+        val status = homeModel.serviceStatus.value?.data ?: ServiceStatus()
+        val running = ShizukuStateMachine.isRunning()
+        val statusKnown = status.uid >= 0
 
         clear()
-        addItem(ServerStatusViewHolder.CREATOR, status, ID_STATUS)
 
-        if (adbPermission) {
-            addItem(ManageAppsViewHolder.CREATOR, status to grantedCount, ID_APPS)
-            addItem(TerminalViewHolder.CREATOR, status, ID_TERMINAL)
+        // The service card shows the state and the actions that apply; it is present even when
+        // stopped/error so the home screen still explains what is happening.
+        addItem(ServiceActionsViewHolder.CREATOR, status, ID_ACTIONS)
+
+        if (running && statusKnown && status.uid == 0) {
+            addItem(RootWarningViewHolder.CREATOR, null, ID_ROOT_WARNING)
         }
 
-        if (running && !adbPermission) {
+        if (running && statusKnown && !status.permission) {
             addItem(AdbPermissionLimitedViewHolder.CREATOR, status, ID_ADB_PERMISSION_LIMITED)
         }
 
-        if (isPrimaryUser) {
-            val rootRestart = running && status.uid == 0
-
-            if (EnvironmentUtils.isRooted()) addItem(StartRootViewHolder.CREATOR, rootRestart, ID_START_ROOT)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ||
-                EnvironmentUtils.isTelevision() ||
-                EnvironmentUtils.getAdbTcpPort() > 0
-            ) addItem(StartWirelessAdbViewHolder.creator(scope), null, ID_START_WADB)
-
-            addItem(StartAdbViewHolder.CREATOR, null, ID_START_ADB)
+        val totalApps = appsModel.packages.value?.data?.size ?: 0
+        if (running) {
+            addItem(
+                HomeAppsViewHolder.CREATOR,
+                HomeAppsData(
+                    appsModel.grantedCount.value?.data ?: 0,
+                    totalApps,
+                ),
+                ID_APPS,
+            )
         }
-        addItem(AutomationViewHolder.CREATOR, null, ID_AUTOMATION)
 
-        addItem(StealthViewHolder.CREATOR, null, ID_STEALTH)
+        addItem(
+            DetailsViewHolder.CREATOR,
+            DetailsData(
+                status,
+                appsModel.grantedCount.value?.data ?: 0,
+                appsModel.packages.value?.data?.size ?: 0,
+                homeModel.detailsExpanded,
+                ::toggleDetails,
+            ).also { detailsData = it },
+            ID_DETAILS
+        )
 
-        addItem(LearnMoreViewHolder.CREATOR, null, ID_LEARN_MORE)
         notifyDataSetChanged()
+    }
+
+    private fun toggleDetails() {
+        homeModel.detailsExpanded = !homeModel.detailsExpanded
+        val current = detailsData ?: return
+        val updated = current.copy(expanded = homeModel.detailsExpanded)
+        detailsData = updated
+        // The holder has already updated itself. Only keep the adapter's data in sync so a
+        // later refresh/recycle does not restore the old expanded state.
+        setFirstItemById(ID_DETAILS, updated)
     }
 }

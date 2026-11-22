@@ -31,6 +31,7 @@ import kotlinx.coroutines.withTimeout
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.AdbMdns
+import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter.WorkerState
@@ -38,6 +39,7 @@ import moe.shizuku.manager.receiver.ShizukuReceiverStarter.updateNotification
 import moe.shizuku.manager.settings.BugReportDialogActivity
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.ShizukuStateMachine
 
 class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -50,12 +52,28 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
             val cr = applicationContext.contentResolver
 
-            Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
-            Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
+            val settingsRestricted = AdbSettings.isDebuggingSettingsRestricted(applicationContext)
+            AdbSettings.enableDebugging(applicationContext)
+            if (settingsRestricted &&
+                Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0) == 0
+            ) {
+                ShizukuReceiverStarter.showDebuggingSettingsRestrictedNotification(applicationContext)
+            }
 
             val tcpPort = EnvironmentUtils.getAdbTcpPort()
             if (tcpPort > 0 && !ShizukuSettings.getTcpMode()) {
                 AdbStarter.stopTcp(applicationContext, tcpPort)
+            }
+
+            val requiresDiscovery = tcpPort <= 0 || EnvironmentUtils.isWifiRequired()
+            if (requiresDiscovery && !LocalNetworkPermission.isGranted(applicationContext)) {
+                // A worker cannot request a runtime permission. Do not start a discovery that
+                // Android will silently block; leave an actionable notification instead.
+                val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(ShizukuReceiverStarter.NOTIFICATION_ID)
+                ShizukuReceiverStarter.abandonStartRequest()
+                LocalNetworkPermission.showMissingNotification(applicationContext)
+                return Result.success()
             }
 
             val port = tcpPort.takeIf { !EnvironmentUtils.isWifiRequired() } ?: callbackFlow {
@@ -95,7 +113,12 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                                 if (intent.action == Intent.ACTION_USER_PRESENT) {
                                     context.unregisterReceiver(this)
                                     unlockReceiver = null
-                                    Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+                                    if (!AdbSettings.setWirelessDebuggingEnabled(applicationContext, true)) {
+                                        if (settingsRestricted) {
+                                            ShizukuReceiverStarter.showDebuggingSettingsRestrictedNotification(applicationContext)
+                                        }
+                                        startDiscoveryWithTimeout()
+                                    }
                                 }
                             }
                         }
@@ -116,7 +139,13 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     }
                 }
 
-                Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+                val wirelessAlreadyEnabled =
+                    Settings.Global.getInt(cr, "adb_wifi_enabled", 0) != 0
+                if (!AdbSettings.setWirelessDebuggingEnabled(applicationContext, true) &&
+                    settingsRestricted && !wirelessAlreadyEnabled
+                ) {
+                    ShizukuReceiverStarter.showDebuggingSettingsRestrictedNotification(applicationContext)
+                }
                 cr.registerContentObserver(Settings.Global.getUriFor("adb_wifi_enabled"), false, observer)
                 startDiscoveryWithTimeout()
 
@@ -128,14 +157,17 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 }
             }.first()
             
+            ShizukuSettings.setLastLaunchMode(ShizukuSettings.LaunchMethod.WIRELESS_ADB)
             AdbStarter.startAdb(applicationContext, port)
             Starter.waitForBinder()
+            AdbStarter.finishWirelessStart(applicationContext, success = true)
 
             val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.cancel(ShizukuReceiverStarter.NOTIFICATION_ID)
 
             return Result.success()
         } catch (e: CancellationException) {
+            AdbStarter.finishWirelessStart(applicationContext, success = false)
             val state = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                 WorkerState.AWAITING_RETRY
             } else {
@@ -157,8 +189,10 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
             if (ignored.none { it.isInstance(e) }) showErrorNotification(applicationContext, e)
 
             if (ShizukuStateMachine.update() == ShizukuStateMachine.State.RUNNING) {
+                AdbStarter.finishWirelessStart(applicationContext, success = true)
                 return Result.success()
             } else {
+                AdbStarter.finishWirelessStart(applicationContext, success = false)
                 updateNotification(
                     applicationContext,
                     WorkerState.AWAITING_RETRY
@@ -202,9 +236,10 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     companion object {
-        fun enqueue(context: Context) {
+        /** Manual starts may run on metered networks; background starts wait for Wi-Fi. */
+        fun enqueue(context: Context, allowMetered: Boolean = false) {
             val cb = Constraints.Builder()
-            if (EnvironmentUtils.isWifiRequired())
+            if (EnvironmentUtils.isWifiRequired() && !allowMetered)
                 cb.setRequiredNetworkType(NetworkType.UNMETERED)
             val constraints = cb.build()
 
@@ -218,6 +253,7 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 request
             )
         }
+
         const val CHANNEL_ID = "AdbStartWorker"
         const val NOTIFICATION_ID = 1448
     }

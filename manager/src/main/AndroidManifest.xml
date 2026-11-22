@@ -19,10 +19,14 @@
     <!-- Needed to receive mDNS multicast for wireless ADB service discovery. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 12+: lets the permission dialog hide non-system overlays so a tap cannot be
+         redirected by an app drawing over Pigu. -->
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Used only for the optional companion's system-installer path. The normal install path
+         goes through the running Shizuku service instead. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-permission
@@ -68,18 +72,22 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <intent>
+            <action android:name="android.accessibilityservice.AccessibilityService" />
+        </intent>
     </queries>
 
     <application
         android:name=".ShizukuApplication"
         android:allowBackup="true"
         android:autoRevokePermissions="allowed"
-        android:banner="@drawable/ic_launcher"
+        android:banner="@mipmap/banner"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:directBootAware="true"
         android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_descriptor"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
@@ -91,7 +99,11 @@
         <activity
             android:name=".MainActivity"
             android:banner="@mipmap/banner"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop">
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -104,6 +116,21 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".home.StartMethodsActivity"
+            android:label="@string/start_methods_title" />
+        <activity
+            android:name=".home.DeveloperActivity"
+            android:label="@string/developer_title" />
+        <activity
+            android:name=".accessibility.AccessibilityActivity"
+            android:exported="false"
+            android:label="@string/accessibility_services_title"
+            tools:ignore="Instantiatable" />
+        <activity
+            android:name=".home.ServiceDoctorActivity"
+            android:label="@string/service_doctor_title"
+            tools:ignore="Instantiatable" />
+        <activity
             android:name=".management.ApplicationManagementActivity"
             android:label="@string/home_app_management_title" />
         <activity
@@ -112,10 +139,6 @@
         <activity
             android:name=".shell.ShellTutorialActivity"
             android:label="@string/home_terminal_title" />
-        <activity
-            android:name=".stealth.StealthTutorialActivity"
-            android:label="@string/home_stealth_title"
-            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".settings.SettingsActivity"
             android:exported="false"
@@ -219,6 +242,16 @@
             android:name=".receiver.BootCompleteReceiver"
             android:enabled="false"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".receiver.AccessibilityBootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>

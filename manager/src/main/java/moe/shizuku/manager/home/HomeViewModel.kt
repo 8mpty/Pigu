@@ -27,6 +27,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appContext: Context = getApplication<Application>().applicationContext
 
+    /** Keeps the details card open across configuration changes. */
+    var detailsExpanded = false
+
     private val _serviceStatus = MutableLiveData<Resource<ServiceStatus>>()
     val serviceStatus = _serviceStatus as LiveData<Resource<ServiceStatus>>
 
@@ -40,9 +43,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val shouldShowUninstallDialog: LiveData<Boolean> = _shouldShowUninstallDialog
 
     private fun load(): ServiceStatus {
-        // In certain cases when user re-installs Shizuku with different package name (e.g., when using stealth mode), the system doesn't recognize the Shizuku permission.
-        // As a result, all permission operations (check/grant/revoke) will fail.
-        // This is fixed by rebooting the device.
+        // If another copy of the app (with a different package name) is installed, the system may not
+        // associate the Shizuku permission with this package, and all permission operations
+        // (check/grant/revoke) will fail. This is fixed by uninstalling the duplicate and rebooting.
         // Run getPermissionGroupInfo() to trigger the exception. Then catch it and show a dialog prompting the user to reboot their device.
         try {
             val permissionGroup = appContext.packageManager.getPermissionGroupInfo(Manifest.permission_group.API, 0)
@@ -55,12 +58,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (!ShizukuStateMachine.isRunning()) {
+            // Let the home screen drop the actions card immediately instead of waiting for the
+            // final post at the end of load().
+            _serviceStatus.postValue(Resource.success(ServiceStatus()))
             return ServiceStatus()
         }
 
         val uid = Shizuku.getUid()
         val apiVersion = Shizuku.getVersion()
         val patchVersion = Shizuku.getServerPatchVersion().let { if (it < 0) 0 else it }
+
+        // Publish the cheap part first so the home actions card appears immediately after a
+        // start, instead of waiting for the SELinux/permission checks below. This only needs to
+        // happen when the previous snapshot was not running; routine resumes use the single full
+        // update and avoid rebuilding the list twice.
+        val previous = _serviceStatus.value?.data
+        if (previous == null || !previous.isRunning) {
+            _serviceStatus.postValue(
+                Resource.success(
+                    ServiceStatus(
+                        uid,
+                        apiVersion,
+                        patchVersion,
+                        previous?.takeIf { it.uid == uid }?.seContext,
+                        previous?.takeIf { it.uid == uid }?.permission ?: true,
+                    )
+                )
+            )
+        }
+
         val seContext = if (apiVersion >= 6) {
             try {
                 Shizuku.getSELinuxContext()

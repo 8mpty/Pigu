@@ -1,8 +1,5 @@
 package moe.shizuku.manager.utils
 
-import android.Manifest.permission.WRITE_SECURE_SETTINGS
-import android.content.pm.PackageManager
-import android.provider.Settings
 import android.util.Log
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
@@ -11,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import moe.shizuku.manager.ShizukuApplication
 import moe.shizuku.manager.ShizukuSettings
+import moe.shizuku.manager.adb.AdbSettings
 import rikka.shizuku.Shizuku
 
 private val appContext = ShizukuApplication.appContext
@@ -34,9 +32,17 @@ object ShizukuStateMachine {
     fun get(): State = state.get()
 
     private fun transition(transform: (State) -> State) {
-        val oldState = state.getAndUpdate(transform)
-        val newState = transform(oldState)
+        var newState = State.STOPPED
+        val oldState = state.getAndUpdate { old ->
+            transform(old).also { newState = it }
+        }
         if(oldState != newState) {
+            if (newState == State.RUNNING) {
+                // Record that this boot has had a server worth keeping alive. The deliberate
+                // stop flag is cleared only by an explicit start request, not by a RUNNING
+                // observation: during a stop the old binder can report one last time.
+                ShizukuSettings.markServerStartedThisBoot(appContext)
+            }
             listeners.forEach { it(newState) }
             Log.d("ShizukuStateMachine", newState.toString())
         }
@@ -47,12 +53,11 @@ object ShizukuStateMachine {
     fun setDead() = transition {
         when (it) {
             State.RUNNING -> State.CRASHED
+            State.STARTING -> State.STOPPED
             State.STOPPING -> {
                 try {
-                    val permissionGranted = appContext.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
-                    val shouldDisableUsbDebugging = permissionGranted && ShizukuSettings.getAutoDisableUsbDebugging()
-                    if (shouldDisableUsbDebugging) {
-                        Settings.Global.putInt(appContext.contentResolver, Settings.Global.ADB_ENABLED, 0)
+                    if (ShizukuSettings.getAutoDisableUsbDebugging()) {
+                        AdbSettings.setAdbEnabled(appContext, false)
                     }
                 } catch (e: Exception) {
                     Log.w("ShizukuStateMachine", "Failed to disable USB debugging", e)

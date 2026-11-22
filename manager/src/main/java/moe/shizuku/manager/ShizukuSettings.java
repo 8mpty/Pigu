@@ -6,13 +6,17 @@ import android.content.ContextWrapper;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
 import java.lang.annotation.Retention;
 import java.util.Locale;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import moe.shizuku.manager.service.WatchdogService;
 import moe.shizuku.manager.receiver.BootCompleteReceiver;
 import moe.shizuku.manager.utils.Token;
@@ -23,33 +27,38 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 public class ShizukuSettings {
 
     public static final String NAME = "settings";
+    private static final String SECRETS_NAME = "secrets";
     public static class Keys {
+        public static final String KEY_AUTH_TOKEN = "auth_token";
         public static final String KEY_START_ON_BOOT = "start_on_boot";
         public static final String KEY_WATCHDOG = "watchdog";
+        public static final String KEY_MANUALLY_STOPPED = "manually_stopped";
+        public static final String KEY_PHANTOM_PROCESS_CONTROL = "phantom_process_control";
+        public static final String KEY_SERVER_STARTED_BOOT = "server_started_boot";
         public static final String KEY_TCP_MODE = "tcp_mode";
         public static final String KEY_TCP_PORT = "tcp_port";
+        public static final String KEY_KEEP_WIRELESS_DEBUGGING = "keep_wireless_debugging";
         public static final String KEY_AUTO_DISABLE_USB_DEBUGGING = "auto_disable_usb_debugging";
         public static final String KEY_LANGUAGE = "language";
-        public static final String KEY_TRANSLATION = "translation";
-        public static final String KEY_TRANSLATION_CONTRIBUTORS = "translation_contributors";
         public static final String KEY_LIGHT_THEME = "light_theme";
         public static final String KEY_NIGHT_MODE = "night_mode";
         public static final String KEY_BLACK_NIGHT_THEME = "black_night_theme";
         public static final String KEY_USE_SYSTEM_COLOR = "use_system_color";
-        public static final String KEY_UPDATE_MODE = "update_mode";
-        public static final String KEY_HELP = "help";
-        public static final String KEY_REPORT_BUG = "report_bug";
         public static final String KEY_LEGACY_PAIRING = "legacy_pairing";
         public static final String KEY_CATEGORY_ADVANCED = "category_advanced";
-    }
-
-    public static class UpdateMode {
-        public static final int OFF = 0;
-        public static final int STABLE = 1;
-        public static final int BETA = 2;
+        public static final String KEY_CATEGORY_ACCESS_CONTROL = "category_access_control";
+        public static final String KEY_ACCESS_LOG = "access_log";
+        public static final String KEY_REVOKE_ALL_GRANTS = "revoke_all_grants";
+        public static final String KEY_DEVELOPER_OPTIONS = "developer_options";
+        public static final String KEY_ROOT_WARNING_ACKNOWLEDGED = "root_warning_acknowledged";
+        public static final String KEY_LAST_WATCHDOG_RESTART = "last_watchdog_restart";
+        public static final String KEY_ACCESSIBILITY_KEEP_ALIVE = "accessibility_keep_alive";
+        public static final String KEY_ACCESSIBILITY_AUTO_BOOT = "accessibility_keep_alive_auto_boot";
+        public static final String KEY_ACCESSIBILITY_PINNED = "accessibility_keep_alive_pinned";
     }
 
     private static SharedPreferences sPreferences;
+    private static SharedPreferences sSecrets;
 
     public static SharedPreferences getPreferences() {
         return sPreferences;
@@ -80,9 +89,13 @@ public class ShizukuSettings {
     }
 
     public static void initialize(Context context) {
+        Context storageContext = getSettingsStorageContext(context);
         if (sPreferences == null) {
-            sPreferences = getSettingsStorageContext(context)
-                .getSharedPreferences(NAME, Context.MODE_PRIVATE);
+            sPreferences = storageContext.getSharedPreferences(NAME, Context.MODE_PRIVATE);
+        }
+        if (sSecrets == null) {
+            sSecrets = storageContext.getSharedPreferences(SECRETS_NAME, Context.MODE_PRIVATE);
+            migrateAuthToken();
         }
     }
 
@@ -90,12 +103,14 @@ public class ShizukuSettings {
         LaunchMethod.UNKNOWN,
         LaunchMethod.ROOT,
         LaunchMethod.ADB,
+        LaunchMethod.WIRELESS_ADB,
     })
     @Retention(SOURCE)
     public @interface LaunchMethod {
         int UNKNOWN = -1;
         int ROOT = 0;
         int ADB = 1;
+        int WIRELESS_ADB = 2;
     }
 
     @LaunchMethod
@@ -111,25 +126,51 @@ public class ShizukuSettings {
         return getPreferences().getBoolean(Keys.KEY_AUTO_DISABLE_USB_DEBUGGING, false);
     }
     
-    public static String getLastPromptedVersion() {
-        return getPreferences().getString("lastPromptedVersion", "");
+    /**
+     * The token lives in a separate preferences file so it is excluded from both the legacy
+     * full-backup descriptor and the Android 12+ data-extraction rules. Those rules include only
+     * settings.xml.
+     */
+    private static void migrateAuthToken() {
+        String legacyToken = sPreferences.getString(Keys.KEY_AUTH_TOKEN, null);
+        if (legacyToken == null) return;
+        if (legacyToken.isEmpty()) {
+            sPreferences.edit().remove(Keys.KEY_AUTH_TOKEN).commit();
+            return;
+        }
+
+        String existingToken = sSecrets.getString(Keys.KEY_AUTH_TOKEN, null);
+        if (existingToken == null || existingToken.isEmpty()) {
+            // Persist before removing the legacy copy so a crash in between cannot lose the token.
+            if (!sSecrets.edit().putString(Keys.KEY_AUTH_TOKEN, legacyToken).commit()) {
+                // Keep the legacy copy; the next launch will retry the migration.
+                return;
+            }
+        }
+        // Remove the legacy copy synchronously so it cannot be picked up by a backup that starts
+        // immediately after this migration.
+        sPreferences.edit().remove(Keys.KEY_AUTH_TOKEN).commit();
     }
 
-    public static void setLastPromptedVersion(String version) {
-        getPreferences().edit().putString("lastPromptedVersion", version).apply();
-    }
-
-    public static String getAuthToken() {
-        String authToken = getPreferences().getString("auth_token", null);
+    public static synchronized String getAuthToken() {
+        String authToken = sSecrets.getString(Keys.KEY_AUTH_TOKEN, null);
         if (authToken == null || authToken.isEmpty()) {
-            authToken = generateAuthToken();
+            authToken = generateAuthTokenLocked();
         }
         return authToken;
     }
 
-    public static String generateAuthToken() {
+    public static synchronized String generateAuthToken() {
+        return generateAuthTokenLocked();
+    }
+
+    private static String generateAuthTokenLocked() {
         String token = Token.generateToken();
-        getPreferences().edit().putString("auth_token", token).apply();
+        // The token is shown to the user and copied into automation intents. Persist it before
+        // returning so a process death cannot leave the UI and the stored token out of sync.
+        if (!sSecrets.edit().putString(Keys.KEY_AUTH_TOKEN, token).commit()) {
+            Log.w("ShizukuSettings", "Failed to persist the automation auth token");
+        }
         return token;
     }
 
@@ -149,22 +190,140 @@ public class ShizukuSettings {
         getPreferences().edit().putBoolean(Keys.KEY_START_ON_BOOT, enable).apply();
     }
     
+    /**
+     * Set when the user stops the service on purpose. The watchdog must not treat that as a
+     * crash and start it again; only an explicit start request clears it.
+     */
+    public static boolean getManuallyStopped() {
+        return getPreferences().getBoolean(Keys.KEY_MANUALLY_STOPPED, false);
+    }
+
+    public static void setManuallyStopped(boolean stopped) {
+        if (!getPreferences().edit().putBoolean(Keys.KEY_MANUALLY_STOPPED, stopped).commit()) {
+            Log.w("ShizukuSettings", "Failed to persist manually-stopped state");
+        }
+    }
+
+    /**
+     * Mirrors the server-side phantom-process setting so diagnostics can show the user's choice
+     * without a binder call. The server remains the source of truth; this is a cache.
+     */
+    public static boolean getPhantomProcessControl() {
+        return getPreferences().getBoolean(Keys.KEY_PHANTOM_PROCESS_CONTROL, false);
+    }
+
+    public static void setPhantomProcessControl(boolean enabled) {
+        getPreferences().edit().putBoolean(Keys.KEY_PHANTOM_PROCESS_CONTROL, enabled).apply();
+    }
+
+    /** True after the user has seen the one-time explanation of what root mode exposes. */
+    public static boolean getRootWarningAcknowledged() {
+        // Keep this acknowledgement out of cloud backup and device transfer: a restored
+        // configuration must not silently suppress the root warning on a different device.
+        return sSecrets.getBoolean(Keys.KEY_ROOT_WARNING_ACKNOWLEDGED, false);
+    }
+
+    public static void setRootWarningAcknowledged(boolean acknowledged) {
+        sSecrets.edit().putBoolean(Keys.KEY_ROOT_WARNING_ACKNOWLEDGED, acknowledged).commit();
+    }
+
+    /** Wall-clock time of the last watchdog-triggered restart, for the Service Doctor. */
+    public static long getLastWatchdogRestart() {
+        return getPreferences().getLong(Keys.KEY_LAST_WATCHDOG_RESTART, 0L);
+    }
+
+    public static void setLastWatchdogRestart(long timestamp) {
+        getPreferences().edit().putLong(Keys.KEY_LAST_WATCHDOG_RESTART, timestamp).apply();
+    }
+
+    /** The boot in which the server last reached RUNNING, so a reboot is not treated as a crash. */
+    public static int getServerStartedBoot() {
+        return getPreferences().getInt(Keys.KEY_SERVER_STARTED_BOOT, -1);
+    }
+
+    public static void setServerStartedBoot(int bootCount) {
+        getPreferences().edit().putInt(Keys.KEY_SERVER_STARTED_BOOT, bootCount).apply();
+    }
+
+    private static int currentBootCount(Context context) {
+        try {
+            return Settings.Global.getInt(
+                    context.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+        } catch (Throwable tr) {
+            Log.w("ShizukuSettings", "Could not read BOOT_COUNT: " + tr.getMessage());
+            return -1;
+        }
+    }
+
+    public static void markServerStartedThisBoot(Context context) {
+        setServerStartedBoot(currentBootCount(context));
+    }
+
+    /**
+     * False after a reboot when the server has not started in this boot. If BOOT_COUNT is not
+     * available, return true so the watchdog keeps its previous recovery behavior.
+     */
+    public static boolean wasServerStartedThisBoot(Context context) {
+        int current = currentBootCount(context);
+        return current < 0 || getServerStartedBoot() == current;
+    }
+
     public static boolean getWatchdog() {
         return getPreferences().getBoolean(Keys.KEY_WATCHDOG, false);
     }
 
     public static boolean isWatchdogRunning() {
-        return WatchdogService.isRunning();
+        return getWatchdog() && WatchdogService.isRunning();
     }
 
     public static void setWatchdog(Context context, boolean enable) {
-        if (enable) {
-            WatchdogService.start(context);
-        } else {
-            WatchdogService.stop(context);
-        }
+        // Persist the user's choice first. Starting/stopping a service is asynchronous, and the
+        // preference listener must not briefly show the opposite state.
+        setWatchdogPreference(enable);
+        WatchdogService.reconcile(context);
+    }
+
+    /**
+     * Writes the watchdog preference without starting or stopping the service.
+     *
+     * The service itself uses this only for an explicit stop, so a system kill or process death
+     * no longer silently turns the user's watchdog setting off.
+     */
+    public static void setWatchdogPreference(boolean enable) {
         getPreferences().edit().putBoolean(Keys.KEY_WATCHDOG, enable).apply();
-        return;
+    }
+
+    /** Opt-in keep-alive for accessibility services the user explicitly pinned. */
+    public static boolean getAccessibilityKeepAlive() {
+        return getPreferences().getBoolean(Keys.KEY_ACCESSIBILITY_KEEP_ALIVE, false);
+    }
+
+    public static void setAccessibilityKeepAlive(boolean enable) {
+        getPreferences().edit().putBoolean(Keys.KEY_ACCESSIBILITY_KEEP_ALIVE, enable).apply();
+    }
+
+    public static boolean getAccessibilityAutoBoot() {
+        return getPreferences().getBoolean(Keys.KEY_ACCESSIBILITY_AUTO_BOOT, true);
+    }
+
+    public static void setAccessibilityAutoBoot(boolean enable) {
+        getPreferences().edit().putBoolean(Keys.KEY_ACCESSIBILITY_AUTO_BOOT, enable).apply();
+    }
+
+    public static Set<String> getPinnedAccessibilityServices() {
+        String raw = getPreferences().getString(Keys.KEY_ACCESSIBILITY_PINNED, "");
+        Set<String> result = new LinkedHashSet<>();
+        if (TextUtils.isEmpty(raw)) return result;
+        for (String id : raw.split(":")) {
+            if (!TextUtils.isEmpty(id)) result.add(id);
+        }
+        return result;
+    }
+
+    public static void setPinnedAccessibilityServices(Set<String> services) {
+        getPreferences().edit()
+            .putString(Keys.KEY_ACCESSIBILITY_PINNED, TextUtils.join(":", services))
+            .apply();
     }
 
     public static boolean getTcpMode() {
@@ -173,6 +332,14 @@ public class ShizukuSettings {
 
     public static void setTcpMode(boolean enable) {
         getPreferences().edit().putBoolean(Keys.KEY_TCP_MODE, enable).apply();
+    }
+
+    public static boolean getKeepWirelessDebugging() {
+        return getPreferences().getBoolean(Keys.KEY_KEEP_WIRELESS_DEBUGGING, false);
+    }
+
+    public static void setKeepWirelessDebugging(boolean enable) {
+        getPreferences().edit().putBoolean(Keys.KEY_KEEP_WIRELESS_DEBUGGING, enable).apply();
     }
 
     public static int getTcpPort() {
@@ -207,13 +374,12 @@ public class ShizukuSettings {
 
     public static Locale getLocale() {
         String tag = getPreferences().getString(Keys.KEY_LANGUAGE, null);
-        if (TextUtils.isEmpty(tag) || "SYSTEM".equals(tag)) {
-            return Locale.getDefault();
+        // Only English and follow-system are supported; treat any other
+        // stored tag as follow-system.
+        if ("en".equals(tag)) {
+            return Locale.forLanguageTag("en");
         }
-        return Locale.forLanguageTag(tag);
+        return Locale.getDefault();
     }
 
-    public static int getUpdateMode() {
-        return getPreferences().getInt(Keys.KEY_UPDATE_MODE, UpdateMode.STABLE);
-    }
 }

@@ -4,4 +4,8 @@
 
     <color name="app_color_light">#3F51B5</color>
     <color name="app_color_dark">#B1B8DF</color>
+    <color name="companion_warning">#E65100</color>
+    <color name="home_status_running">#1B5E20</color>
+    <color name="home_status_stopped">#B3261E</color>
+    <color name="home_status_warning">#8A4B00</color>
 </resources>

@@ -1,23 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@android:id/list"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:clipToPadding="false"
     app:fitsSystemWindowsInsets="bottom|start|end"
     app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <TextView
-        android:id="@android:id/text1"
+    <androidx.core.widget.NestedScrollView
+        android:id="@android:id/list"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="@dimen/margin_horizontal"
-        android:paddingVertical="@dimen/margin_vertical"
-        android:fontFamily="monospace"
-        android:textColor="?android:textColorPrimary"
-        android:textIsSelectable="true"
-        android:textSize="12sp" />
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="88dp">
 
-</androidx.core.widget.NestedScrollView>
+        <TextView
+            android:id="@android:id/text1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="@dimen/margin_horizontal"
+            android:paddingVertical="@dimen/margin_vertical"
+            android:fontFamily="monospace"
+            android:textColor="?android:textColorPrimary"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/copy"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/margin_horizontal"
+        android:text="@string/starter_copy_output"
+        app:icon="@drawable/ic_copy"
+        app:iconGravity="textStart" />
+
+</FrameLayout>

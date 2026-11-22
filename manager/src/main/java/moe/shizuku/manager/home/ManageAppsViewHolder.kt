@@ -10,17 +10,23 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.databinding.HomeItemContainerBinding
 import moe.shizuku.manager.databinding.HomeManageAppsItemBinding
 import moe.shizuku.manager.ktx.toHtml
+import moe.shizuku.manager.management.AppDiscoverySummary
 import moe.shizuku.manager.management.ApplicationManagementActivity
 import moe.shizuku.manager.model.ServiceStatus
 import rikka.html.text.HtmlCompat
 import rikka.recyclerview.BaseViewHolder
 import rikka.recyclerview.BaseViewHolder.Creator
 
+data class ManageAppsData(
+    val status: ServiceStatus,
+    val summary: AppDiscoverySummary,
+)
+
 class ManageAppsViewHolder(private val binding: HomeManageAppsItemBinding, root: View) :
-    BaseViewHolder<Pair<ServiceStatus, Int>>(root), View.OnClickListener {
+    BaseViewHolder<ManageAppsData>(root), View.OnClickListener {
 
     companion object {
-        val CREATOR = Creator<Pair<ServiceStatus, Int>> { inflater: LayoutInflater, parent: ViewGroup? ->
+        val CREATOR = Creator<ManageAppsData> { inflater: LayoutInflater, parent: ViewGroup? ->
             val outer = HomeItemContainerBinding.inflate(inflater, parent, false)
             val inner = HomeManageAppsItemBinding.inflate(inflater, outer.root, true)
             ManageAppsViewHolder(inner, outer.root)
@@ -36,7 +42,8 @@ class ManageAppsViewHolder(private val binding: HomeManageAppsItemBinding, root:
 
     override fun onBind() {
         val context = itemView.context
-        if (!data.first.isRunning) {
+        val info = data
+        if (!info.status.isRunning) {
             itemView.isEnabled = false
             title.setText(R.string.home_app_management_title)
             summary.text = context.getString(
@@ -47,10 +54,18 @@ class ManageAppsViewHolder(private val binding: HomeManageAppsItemBinding, root:
             itemView.isEnabled = true
             title.text = context.resources.getQuantityString(
                 R.plurals.home_app_management_authorized_apps_count,
-                data.second,
-                data.second
+                info.summary.authorized,
+                info.summary.authorized
             )
-            summary.text = context.getString(R.string.home_app_management_view_authorized_apps)
+            summary.text = when {
+                info.summary.total == 0 -> context.getString(R.string.home_app_management_empty)
+                info.summary.companionCandidates > 0 -> context.resources.getQuantityString(
+                    R.plurals.home_app_management_companion_candidates,
+                    info.summary.companionCandidates,
+                    info.summary.companionCandidates
+                )
+                else -> context.getString(R.string.home_app_management_view_authorized_apps)
+            }
         }
     }
 

@@ -24,6 +24,8 @@ sealed class SettingsPage(
         object HighlightUsbDebugging : Developer(fragmentArg = "enable_adb")
         object HighlightWirelessDebugging : Developer(fragmentArg = "toggle_adb_wireless")
 
+        object DeveloperOptions : Developer()
+
         object WirelessDebugging : Developer() {
             override fun buildIntent(context: Context): Intent {
                 if (Build.BRAND in setOf("xiaomi", "redmi", "poco")) {

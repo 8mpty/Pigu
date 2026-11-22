@@ -4,6 +4,8 @@
         <include
             domain="sharedpref"
             path="settings.xml" />
+        <!-- Only settings.xml is included. The automation token lives in secrets.xml, which is
+             deliberately not listed here and therefore not backed up. -->
     </cloud-backup>
     <device-transfer>
         <include

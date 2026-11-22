@@ -10,25 +10,50 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.topjohnwu.superuser.Shell
+import moe.shizuku.manager.MainActivity
 import moe.shizuku.manager.R
 import moe.shizuku.manager.AppConstants
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.ShizukuSettings.LaunchMethod
 import moe.shizuku.manager.starter.Starter
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.RootWarning
 import moe.shizuku.manager.utils.SettingsPage
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import moe.shizuku.manager.utils.UserHandleCompat
 import moe.shizuku.manager.worker.AdbStartWorker
+import rikka.shizuku.Shizuku
 
 object ShizukuReceiverStarter {
 
+    private const val TAG = "ShizukuReceiverStarter"
+
     const val NOTIFICATION_ID = 1447
+    private const val NOTIFICATION_ID_UNSUPPORTED = 1449
+    private const val NOTIFICATION_ID_DEBUGGING_RESTRICTED = 1451
+    private const val NOTIFICATION_ID_ROOT_WARNING = 1452
     private const val CHANNEL_ID = "AdbStartWorker"
+    private const val MAX_START_IN_FLIGHT_MS = 3 * 60_000L
+
+    private val startGate = StartRequestGate(MAX_START_IN_FLIGHT_MS)
+
+    init {
+        // A terminal state means the request the gate is holding has finished, one way or
+        // another. Without this, a failed start would block retries until the timeout.
+        ShizukuStateMachine.addListener { state ->
+            if (state == ShizukuStateMachine.State.RUNNING ||
+                state == ShizukuStateMachine.State.STOPPED ||
+                state == ShizukuStateMachine.State.CRASHED
+            ) {
+                startGate.release()
+            }
+        }
+    }
 
     enum class WorkerState {
         AWAITING_WIFI,
@@ -37,22 +62,125 @@ object ShizukuReceiverStarter {
         STOPPED
     }
 
-    fun start(context: Context, forceStart: Boolean = false) {
-        if ((UserHandleCompat.myUserId() > 0 || ShizukuStateMachine.isRunning()) && !forceStart) return
+    /**
+     * Whether an automation/boot start is already being handled. The watchdog uses this before
+     * its own probe so it does not race an enqueued worker whose start has not set STARTING yet.
+     */
+    fun isStartInFlight(): Boolean {
+        return startGate.isInFlight(SystemClock.elapsedRealtime()) ||
+            ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING
+    }
 
-        if (ShizukuSettings.getLastLaunchMode() == LaunchMethod.ROOT) {
-            rootStart(context)
-        } else if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)
-            && ShizukuSettings.getLastLaunchMode() == LaunchMethod.ADB) {
-                if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
-                    AdbStartWorker.enqueue(context)
-                    updateNotification(context, WorkerState.AWAITING_WIFI)
-                } else {
-                    showPermissionErrorNotification(context)
-                }
-        } else {
-            Log.w(AppConstants.TAG, "Background start not supported")
+    /** A worker that could not run discovery must not leave the start gate held. */
+    fun abandonStartRequest() {
+        startGate.release()
+    }
+
+    /**
+     * @param forceStart watchdog recovery, which must not clear a deliberate stop.
+     * @param allowMetered a manual/automation start may use mobile data; boot and watchdog
+     * wait for an unmetered network instead.
+     */
+    fun start(
+        context: Context,
+        forceStart: Boolean = false,
+        allowMetered: Boolean = false,
+    ) {
+        val storedMode = ShizukuSettings.getLastLaunchMode()
+        val mode = resolveLaunchMethod(context, storedMode)
+        val binderAlive = Shizuku.pingBinder()
+
+        // A start request from a user, boot, or automation overrides an earlier deliberate stop.
+        // The watchdog uses forceStart and has already checked this flag itself.
+        if (forceStart && ShizukuSettings.getManuallyStopped()) {
+            Log.i(TAG, "start ignored: the service was stopped on purpose")
+            return
         }
+        if (!forceStart) {
+            ShizukuSettings.setManuallyStopped(false)
+        }
+
+        // Do not trust the cached state machine here. It is driven by binder-death callbacks,
+        // which can be delayed while the app process is cached/dozing. A stale RUNNING state
+        // makes an automation START intent silently do nothing after the server has died.
+        Log.i(
+            TAG,
+            "start requested: forceStart=$forceStart binderAlive=$binderAlive " +
+                "state=${ShizukuStateMachine.get()} storedMode=$storedMode mode=$mode " +
+                "user=${UserHandleCompat.myUserId()} tcpPort=${EnvironmentUtils.getAdbTcpPort()} " +
+                "tcpMode=${ShizukuSettings.getTcpMode()} allowMetered=$allowMetered"
+        )
+
+        if (!forceStart && (UserHandleCompat.myUserId() > 0 || binderAlive)) {
+            Log.i(TAG, "start ignored: user not supported or service already running")
+            return
+        }
+
+        if (!forceStart) {
+            if (ShizukuStateMachine.get() == ShizukuStateMachine.State.STARTING) {
+                Log.i(TAG, "start ignored: another start is already in progress")
+                return
+            }
+            if (!startGate.tryAcquire(SystemClock.elapsedRealtime())) {
+                Log.i(TAG, "start ignored: a previous start request is still being handled")
+                return
+            }
+        }
+
+        if (mode == LaunchMethod.ROOT) {
+            // Automation and boot cannot show the root explanation. Do not start root mode
+            // until the user has acknowledged it in the app.
+            if (!RootWarning.isAcknowledged()) {
+                Log.w(TAG, "root start blocked until the root warning is acknowledged")
+                if (!forceStart) startGate.release()
+                showRootWarningNotification(context)
+                return
+            }
+            if (!rootStart(context) && !forceStart) startGate.release()
+        } else if ((mode == LaunchMethod.ADB || mode == LaunchMethod.WIRELESS_ADB) &&
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision() || EnvironmentUtils.getAdbTcpPort() > 0)) {
+            if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    AdbStartWorker.enqueue(context, allowMetered)
+                    updateNotification(
+                        context,
+                        if (allowMetered) WorkerState.RUNNING else WorkerState.AWAITING_WIFI,
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to enqueue background start", e)
+                    if (!forceStart) startGate.release()
+                    showUnsupportedNotification(context)
+                }
+            } else {
+                if (!forceStart) startGate.release()
+                showPermissionErrorNotification(context)
+            }
+        } else {
+            Log.w(TAG, "Background start not supported: $mode")
+            if (!forceStart) startGate.release()
+            showUnsupportedNotification(context)
+        }
+    }
+
+    /**
+     * A start intent can arrive before Pigu has ever recorded a launch method (for example after
+     * a fresh install, cleared data, or a start performed outside the app). In that case, infer
+     * the method from the current device state instead of silently refusing to start.
+     */
+    private fun resolveLaunchMethod(context: Context, storedMode: Int): Int {
+        if (storedMode != LaunchMethod.UNKNOWN) return storedMode
+
+        if (EnvironmentUtils.getAdbTcpPort() > 0) {
+            Log.i(TAG, "no stored launch method; using ADB because a TCP port is available")
+            return LaunchMethod.ADB
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || EnvironmentUtils.isTelevision()) {
+            Log.i(TAG, "no stored launch method; using wireless ADB")
+            return LaunchMethod.WIRELESS_ADB
+        }
+
+        return storedMode
     }
 
     fun buildNotification(context: Context, msg: String? = null): Notification {
@@ -112,20 +240,88 @@ object ShizukuReceiverStarter {
         nm.notify(NOTIFICATION_ID, buildNotification(context, msg))
     }
 
-    private fun rootStart(context: Context) {
+    fun showDebuggingSettingsRestrictedNotification(context: Context) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.wadb_notification_title),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(channel)
+
+        val developerOptionsIntent = SettingsPage.Developer.DeveloperOptions.buildIntent(context)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            developerOptionsIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_system_icon)
+            .setContentTitle(context.getString(R.string.wadb_debugging_settings_restricted_title))
+            .setContentText(context.getString(R.string.wadb_debugging_settings_restricted_content))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(context.getString(R.string.wadb_debugging_settings_restricted_content))
+            )
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_DEBUGGING_RESTRICTED, notification)
+    }
+
+    private fun rootStart(context: Context): Boolean {
         if (!Shell.getShell().isRoot) {
+            Log.w(TAG, "root start requested, but no root shell is available")
             //NotificationHelper.notify(context, AppConstants.NOTIFICATION_ID_STATUS, AppConstants.NOTIFICATION_CHANNEL_STATUS, R.string.notification_service_start_no_root)
             Shell.getCachedShell()?.close()
-            return
+            showUnsupportedNotification(context)
+            return false
         }
 
-        try {
+        return try {
             ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
             Shell.cmd(Starter.internalCommand).exec()
+            true
         } catch (e: Exception) {
             Log.e(AppConstants.TAG, "Failed to start Shizuku with root", e)
             ShizukuStateMachine.update()
+            false
         }
+    }
+
+    private fun showRootWarningNotification(context: Context) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.wadb_notification_title),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(channel)
+
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pendingLaunchIntent = PendingIntent.getActivity(
+            context, 0, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_warning_24)
+            .setContentTitle(context.getString(R.string.root_warning_notification_title))
+            .setContentText(context.getString(R.string.root_warning_notification_message))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(context.getString(R.string.root_warning_notification_message))
+            )
+            .setAutoCancel(true)
+            .setContentIntent(pendingLaunchIntent)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_ROOT_WARNING, notification)
     }
 
     private fun showPermissionErrorNotification(context: Context) {
@@ -155,5 +351,40 @@ object ShizukuReceiverStarter {
             .build()
 
         nm.notify(NOTIFICATION_ID, notification)
+    }
+
+    /**
+     * The start intent (and start-on-boot) can only run when Pigu knows how the service was
+     * started before. When that isn't the case, say so instead of failing silently - otherwise
+     * automation intents look like they do nothing at all.
+     */
+    private fun showUnsupportedNotification(context: Context) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.wadb_notification_title),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(channel)
+
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pendingLaunchIntent = PendingIntent.getActivity(
+            context, 0, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val msg = context.getString(R.string.wadb_unsupported_notification_content)
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_system_icon)
+            .setContentTitle(context.getString(R.string.wadb_unsupported_notification_title))
+            .setContentText(msg)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(msg))
+            .setAutoCancel(true)
+            .setContentIntent(pendingLaunchIntent)
+            .build()
+
+        nm.notify(NOTIFICATION_ID_UNSUPPORTED, notification)
     }
 }

@@ -1,24 +1,28 @@
 package moe.shizuku.manager.adb
 
-import android.Manifest
 import android.app.AppOpsManager
 import android.app.ForegroundServiceStartNotAllowedException
 import android.app.NotificationManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import moe.shizuku.manager.AppConstants
+import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.databinding.AdbPairingTutorialActivityBinding
+import moe.shizuku.manager.starter.StarterActivity
+import moe.shizuku.manager.utils.LocalNetworkPermission
 import moe.shizuku.manager.utils.SettingsHelper
 import moe.shizuku.manager.utils.SettingsPage
 import rikka.compatibility.DeviceCompatibility
@@ -30,6 +34,16 @@ class AdbPairingTutorialActivity : AppBarActivity() {
 
     private var notificationEnabled: Boolean = false
 
+    private val pairingSucceededReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AdbPairingService.ACTION_PAIRING_SUCCEEDED &&
+                !isFinishing && !isDestroyed
+            ) {
+                openStarter()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val context = this
@@ -37,6 +51,13 @@ class AdbPairingTutorialActivity : AppBarActivity() {
         binding = AdbPairingTutorialActivityBinding.inflate(layoutInflater, rootView, true)
         
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        ContextCompat.registerReceiver(
+            this,
+            pairingSucceededReceiver,
+            IntentFilter(AdbPairingService.ACTION_PAIRING_SUCCEEDED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         notificationEnabled = isNotificationEnabled()
 
@@ -95,28 +116,36 @@ class AdbPairingTutorialActivity : AppBarActivity() {
         }
     }
 
-    // Android 17 (SDK 37) gates local-network access behind ACCESS_LOCAL_NETWORK;
-    // Android 16 (SDK 36) uses NEARBY_WIFI_DEVICES. Without a runtime grant the OS
-    // intercepts the pairing connection with an endless "choose a device" picker.
-    private fun localNetworkPermission(): String? = when {
-        Build.VERSION.SDK_INT >= 37 -> "android.permission.ACCESS_LOCAL_NETWORK"
-        Build.VERSION.SDK_INT >= 36 -> Manifest.permission.NEARBY_WIFI_DEVICES
-        else -> null
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(pairingSucceededReceiver) }
+        super.onDestroy()
     }
 
-    private val localNetworkPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            // Start pairing whether or not the grant succeeded; a denial simply means
-            // discovery/connect will fail and the service surfaces the error.
-            doStartPairingService()
-        }
+    private fun openStarter() {
+        startActivity(
+            Intent(this, StarterActivity::class.java).apply {
+                putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
+            }
+        )
+        finish()
+    }
+
+    private var localNetworkRequestPending = false
 
     private fun startPairingService() {
-        val permission = localNetworkPermission()
-        if (permission != null && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
-            localNetworkPermissionLauncher.launch(permission)
-        } else {
-            doStartPairingService()
+        // Every pairing discovery path goes through the same gate, including the retry path
+        // from the notification. Without a grant, do not start mDNS at all.
+        if (localNetworkRequestPending) return
+        if (!LocalNetworkPermission.isGranted(this)) {
+            localNetworkRequestPending = true
+        }
+        LocalNetworkPermission.request(this) { granted ->
+            localNetworkRequestPending = false
+            if (granted) {
+                doStartPairingService()
+            } else {
+                Toast.makeText(this, R.string.local_network_permission_denied, Toast.LENGTH_LONG).show()
+            }
         }
     }
 

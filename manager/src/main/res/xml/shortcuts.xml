@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_server_start_24dp"
+        android:shortcutId="start_service"
+        android:shortcutLongLabel="@string/shortcut_start_service_long"
+        android:shortcutShortLabel="@string/shortcut_start_service_short">
+        <intent
+            android:action="com.empty.pigu.action.START_SERVICE"
+            android:targetClass="moe.shizuku.manager.MainActivity"
+            android:targetPackage="com.empty.pigu" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_visibility_on_outline_24"
+        android:shortcutId="app_management"
+        android:shortcutLongLabel="@string/shortcut_app_management_long"
+        android:shortcutShortLabel="@string/shortcut_app_management_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="moe.shizuku.manager.management.ApplicationManagementActivity"
+            android:targetPackage="com.empty.pigu" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_build_24"
+        android:shortcutId="developer"
+        android:shortcutLongLabel="@string/shortcut_developer_long"
+        android:shortcutShortLabel="@string/shortcut_developer_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="moe.shizuku.manager.home.DeveloperActivity"
+            android:targetPackage="com.empty.pigu" />
+    </shortcut>
+
+</shortcuts>

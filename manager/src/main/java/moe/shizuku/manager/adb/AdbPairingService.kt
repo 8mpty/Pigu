@@ -13,10 +13,9 @@ import androidx.lifecycle.Observer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import moe.shizuku.manager.MainActivity
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
-import moe.shizuku.manager.home.HomeActivity
+import moe.shizuku.manager.starter.StarterActivity
 import rikka.core.ktx.unsafeLazy
 import java.net.ConnectException
 
@@ -27,6 +26,8 @@ class AdbPairingService : Service() {
 
         const val NOTIFICATION_CHANNEL = "adb_pairing"
         const val NOTIFICATION_ID = 1
+        const val ACTION_PAIRING_SUCCEEDED =
+            "moe.shizuku.manager.action.PAIRING_SUCCEEDED"
 
         private const val tag = "AdbPairingService"
 
@@ -157,7 +158,7 @@ class AdbPairingService : Service() {
     private fun onInput(code: String, host: String, port: Int): Notification {
         GlobalScope.launch(Dispatchers.IO) {
             val key = try {
-                AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "shizuku")
+                AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), AdbKey.KEY_NAME)
             } catch (e: Throwable) {
                 e.printStackTrace()
                 return@launch
@@ -188,6 +189,9 @@ class AdbPairingService : Service() {
             text = getString(R.string.notification_adb_pairing_succeed_text)
 
             stopSearch()
+            sendBroadcast(
+                Intent(ACTION_PAIRING_SUCCEEDED).setPackage(packageName)
+            )
         } else {
             title = getString(R.string.notification_adb_pairing_failed_title)
 
@@ -235,12 +239,13 @@ class AdbPairingService : Service() {
     }
 
     private val launchIntent by unsafeLazy {
-        Intent(this, MainActivity::class.java).apply {
+        Intent(this, StarterActivity::class.java).apply {
             addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or 
+                Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
             )
+            putExtra(StarterActivity.EXTRA_DISCOVER_WIRELESS, true)
         }
     }
 
@@ -252,7 +257,6 @@ class AdbPairingService : Service() {
 
     private val startNotificationAction by unsafeLazy {
         val startIntent = Intent(launchIntent)
-            .putExtra(HomeActivity.EXTRA_START_SERVICE_VIA_WADB, true)
 
         val pendingIntent = PendingIntent.getActivity(
             this, startRequestId, startIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

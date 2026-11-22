@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Card.Small">
+
+    <ImageView
+        style="@style/CardIcon"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_apps_24" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/home_icon_padding"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            style="@style/CardTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/home_apps_title" />
+
+        <TextView
+            android:id="@+id/apps_summary"
+            style="@style/CardSummary.Brief"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            tools:text="9 of 14 apps authorized" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:importantForAccessibility="no"
+        android:rotation="-90"
+        android:src="@drawable/ic_expand_more_24"
+        android:tint="?attr/colorOnSurfaceVariant" />
+
+</LinearLayout>

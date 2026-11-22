@@ -11,8 +11,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
-import android.text.InputType
-import android.text.TextUtils
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -21,37 +19,44 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.ActivityResultLauncher
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat.Type
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.*
-import androidx.preference.Preference.SummaryProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.CancellableContinuation
 import moe.shizuku.manager.R
 import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.ShizukuSettings.Keys.*
+import moe.shizuku.manager.adb.AdbSettings
 import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.SnackbarHelper
 import moe.shizuku.manager.app.ThemeHelper
+import moe.shizuku.manager.audit.AuditLogSheet
+import moe.shizuku.manager.authorization.AuthorizationManager
+import moe.shizuku.manager.databinding.DialogTcpModeBinding
+import moe.shizuku.manager.management.AccessActions
 import moe.shizuku.manager.ktx.isComponentEnabled
 import moe.shizuku.manager.ktx.setComponentEnabled
-import moe.shizuku.manager.ktx.toHtml
 import moe.shizuku.manager.receiver.BootCompleteReceiver
 import moe.shizuku.manager.receiver.NotifCancelReceiver
 import moe.shizuku.manager.receiver.ShizukuReceiverStarter
-import moe.shizuku.manager.utils.CustomTabsHelper
 import moe.shizuku.manager.utils.EnvironmentUtils
+import moe.shizuku.manager.utils.PhantomProcessControl
 import moe.shizuku.manager.utils.SettingsHelper
+import moe.shizuku.manager.utils.SettingsPage
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import rikka.core.util.ResourceUtils
 import rikka.html.text.HtmlCompat
@@ -59,25 +64,24 @@ import rikka.material.app.LocaleDelegate
 import rikka.recyclerview.addEdgeSpacing
 import rikka.recyclerview.addItemSpacing
 import rikka.recyclerview.fixEdgeEffect
-import rikka.shizuku.manager.ShizukuLocales
 import java.util.*
 
 class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener {
 
     private lateinit var startOnBootPreference: TwoStatePreference
     private lateinit var watchdogPreference: TwoStatePreference
-    private lateinit var tcpModePreference: TwoStatePreference
-    private lateinit var tcpPortPreference: EditTextPreference
+    private lateinit var accessLogPreference: Preference
+    private lateinit var revokeAllGrantsPreference: Preference
+    private lateinit var tcpModePreference: Preference
+    private lateinit var autoDisableUsbDebuggingPreference: TwoStatePreference
+    private lateinit var keepWirelessDebuggingPreference: TwoStatePreference
+    private lateinit var developerOptionsPreference: Preference
     private lateinit var languagePreference: ListPreference
-    private lateinit var translationPreference: Preference
-    private lateinit var translationContributorsPreference: Preference
     private lateinit var nightModePreference: IntegerSimpleMenuPreference
     private lateinit var blackNightThemePreference: TwoStatePreference
     private lateinit var useSystemColorPreference: TwoStatePreference
-    private lateinit var updateModePreference: IntegerSimpleMenuPreference
-    private lateinit var helpPreference: Preference
-    private lateinit var reportBugPreference: Preference
     private lateinit var legacyPairingPreference: TwoStatePreference
+    private lateinit var phantomProcessControlPreference: TwoStatePreference
     private lateinit var advancedCategory: PreferenceCategory
 
     private lateinit var batteryOptimizationListener: ActivityResultLauncher<Intent>
@@ -85,8 +89,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     private val stateListener: (ShizukuStateMachine.State) -> Unit = {
         if (ShizukuStateMachine.isRunning()) {
-            tcpModePreference.icon = maybeGetRestartIcon(KEY_TCP_MODE)
-            tcpPortPreference.icon = maybeGetRestartIcon(KEY_TCP_PORT)
+            tcpModePreference.icon = tcpRestartIcon()
         }
     }
 
@@ -100,19 +103,21 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
         startOnBootPreference = findPreference(KEY_START_ON_BOOT)!!
         watchdogPreference = findPreference(KEY_WATCHDOG)!!
+        accessLogPreference = findPreference(KEY_ACCESS_LOG)!!
+        revokeAllGrantsPreference = findPreference(KEY_REVOKE_ALL_GRANTS)!!
         tcpModePreference = findPreference(KEY_TCP_MODE)!!
-        tcpPortPreference = findPreference(KEY_TCP_PORT)!!
+        autoDisableUsbDebuggingPreference = findPreference(KEY_AUTO_DISABLE_USB_DEBUGGING)!!
+        keepWirelessDebuggingPreference = findPreference(KEY_KEEP_WIRELESS_DEBUGGING)!!
+        developerOptionsPreference = findPreference(KEY_DEVELOPER_OPTIONS)!!
         languagePreference = findPreference(KEY_LANGUAGE)!!
-        translationPreference = findPreference(KEY_TRANSLATION)!!
-        translationContributorsPreference = findPreference(KEY_TRANSLATION_CONTRIBUTORS)!!
         nightModePreference = findPreference(KEY_NIGHT_MODE)!!
         blackNightThemePreference = findPreference(KEY_BLACK_NIGHT_THEME)!!
         useSystemColorPreference = findPreference(KEY_USE_SYSTEM_COLOR)!!
-        updateModePreference = findPreference(KEY_UPDATE_MODE)!!
-        helpPreference = findPreference(KEY_HELP)!!
-        reportBugPreference = findPreference(KEY_REPORT_BUG)!!
         legacyPairingPreference = findPreference(KEY_LEGACY_PAIRING)!!
+        phantomProcessControlPreference = findPreference(KEY_PHANTOM_PROCESS_CONTROL)!!
         advancedCategory = findPreference(KEY_CATEGORY_ADVANCED)!!
+
+        val debuggingSettingsRestricted = AdbSettings.isDebuggingSettingsRestricted(context)
 
         batteryOptimizationListener = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             val accepted = SettingsHelper.isIgnoringBatteryOptimizations(requireContext())
@@ -162,7 +167,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         }
 
         watchdogPreference.apply {
-            isChecked = ShizukuSettings.isWatchdogRunning()
+            isChecked = ShizukuSettings.getWatchdog()
 
             setOnPreferenceChangeListener { _, newValue ->
                 if (newValue is Boolean) {
@@ -177,63 +182,69 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             }
         }
 
+        accessLogPreference.setOnPreferenceClickListener {
+            AuditLogSheet.show(context) {}
+            true
+        }
+
+        revokeAllGrantsPreference.setOnPreferenceClickListener {
+            showRevokeAllGrants()
+            true
+        }
+
         tcpModePreference.apply {
-            if (EnvironmentUtils.isTlsSupported()) {
-                summary = context.getString(R.string.settings_tcp_mode_summary)
-                icon = maybeGetRestartIcon(KEY_TCP_MODE)
-                setOnPreferenceChangeListener { _, newValue ->
-                    if (newValue is Boolean) {
-                        val applyChange: () -> Unit = {
-                            ShizukuSettings.setTcpMode(newValue)
-                            isChecked = newValue
-                            isEnabled = true
-                            summary = context.getString(R.string.settings_tcp_mode_summary)
-                            icon = maybeGetRestartIcon(KEY_TCP_MODE)
-                            tcpPortPreference.isVisible = newValue
-                        }
-                        
-                        if (!newValue && !ShizukuStateMachine.isRunning() && needsRestart(KEY_TCP_MODE, newValue)) {
-                            promptStopTcp { applyChange() }
-                        } else maybePromptRestart (KEY_TCP_MODE, newValue) { applyChange() }
-                    }
-                    false
+            if (EnvironmentUtils.isTlsSupported() || EnvironmentUtils.isTelevision()) {
+                updateTcpModeSummary()
+                icon = tcpRestartIcon()
+                setOnPreferenceClickListener {
+                    showTcpModeDialog(lockMode = !EnvironmentUtils.isTlsSupported())
+                    true
                 }
-            } else if (EnvironmentUtils.isTelevision()) {
-                isEnabled = false
-                isChecked = true
             } else {
                 isVisible = false
             }
         }
 
-        tcpPortPreference.apply {
-            isVisible = tcpModePreference.isVisible && tcpModePreference.isChecked
-            icon = maybeGetRestartIcon(KEY_TCP_PORT)
-
-            setOnBindEditTextListener { editText ->
-                editText.hint = context.getString(R.string.settings_tcp_port_hint)
-                editText.inputType = InputType.TYPE_CLASS_NUMBER
-                editText.setSelection(editText.text.length)
+        autoDisableUsbDebuggingPreference.apply {
+            if (debuggingSettingsRestricted) {
+                summary = context.getString(R.string.settings_auto_disable_usb_debugging_summary_restricted)
             }
+        }
 
-            summaryProvider = SummaryProvider<EditTextPreference> { pref ->
-                val text = pref.text
-                if (text.isNullOrEmpty()) context.getString(R.string.settings_tcp_port_default) else text
+        keepWirelessDebuggingPreference.apply {
+            isChecked = ShizukuSettings.getKeepWirelessDebugging()
+            if (debuggingSettingsRestricted) {
+                summary = context.getString(R.string.settings_keep_wireless_debugging_summary_restricted)
             }
 
             setOnPreferenceChangeListener { _, newValue ->
-                val port = (newValue as? String)?.toIntOrNull()
-                if (port == null || port in 1..65535) {
-                    val applyChange: () -> Unit = {
-                        ShizukuSettings.setTcpPort(port)
-                        text = port?.toString()
-                        icon = maybeGetRestartIcon(KEY_TCP_PORT)
-                    }
-                    maybePromptRestart (KEY_TCP_PORT, port ?: 5555) { applyChange() }
+                if (newValue == true) {
+                    MaterialAlertDialogBuilder(context)
+                        .setTitle(R.string.settings_keep_wireless_debugging_dialog_title)
+                        .setMessage(R.string.settings_keep_wireless_debugging_dialog_message)
+                        .setCancelable(false)
+                        .setPositiveButton(R.string.settings_keep_wireless_debugging_enable) { _, _ ->
+                            ShizukuSettings.setKeepWirelessDebugging(true)
+                            isChecked = true
+                        }
+                        .setNegativeButton(android.R.string.cancel) { _, _ ->
+                            ShizukuSettings.setKeepWirelessDebugging(false)
+                            isChecked = false
+                        }
+                        .show()
                 } else {
-                    SnackbarHelper.show(context, requireView(), context.getString(R.string.snackbar_invalid_port))
+                    ShizukuSettings.setKeepWirelessDebugging(false)
+                    isChecked = false
                 }
                 false
+            }
+        }
+
+        developerOptionsPreference.apply {
+            isVisible = AdbSettings.shouldShowDeveloperOptionsShortcut(context)
+            setOnPreferenceClickListener {
+                SettingsPage.Developer.DeveloperOptions.launch(context)
+                true
             }
         }
 
@@ -289,44 +300,120 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             } else isVisible = false
         }
 
-        translationPreference.apply {
-            summary = context.getString(R.string.settings_translation_summary, context.getString(R.string.app_name))
-            setOnPreferenceClickListener {
-                CustomTabsHelper.launchUrlOrCopy(context, context.getString(R.string.translation_url))
-                true
-            }
-        }
-
-        translationContributorsPreference.apply {
-            val contributors = context.getString(R.string.translation_contributors).toHtml().toString()
-            if (contributors.isNotBlank()) {
-                summary = contributors
-            } else isVisible = false
-        }
-
-        updateModePreference.value = ShizukuSettings.getUpdateMode()
-
-        helpPreference.setOnPreferenceClickListener {
-            CustomTabsHelper.launchUrlOrCopy(context, context.getString(R.string.help_url))
-            true
-        }
-
-        reportBugPreference.setOnPreferenceClickListener {
-            BugReportDialog().show(parentFragmentManager, "BugReportDialog")
-            true
-        }
-
         legacyPairingPreference.apply {
             isVisible = !EnvironmentUtils.isTelevision()
         }
 
-        advancedCategory.isVisible = legacyPairingPreference.isVisible
+        phantomProcessControlPreference.apply {
+            isVisible = PhantomProcessControl.isSupported()
+            isChecked = ShizukuSettings.getPhantomProcessControl()
+            summary = context.getString(R.string.settings_phantom_process_summary)
+
+            setOnPreferenceChangeListener { _, newValue ->
+                if (newValue is Boolean) {
+                    if (newValue) {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.settings_phantom_process_dialog_title)
+                            .setMessage(R.string.settings_phantom_process_dialog_message)
+                            .setPositiveButton(R.string.settings_phantom_process_enable) { _, _ ->
+                                applyPhantomProcessControl(true)
+                            }
+                            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                                isChecked = false
+                            }
+                            .show()
+                    } else {
+                        applyPhantomProcessControl(false)
+                    }
+                }
+                false
+            }
+        }
+
+        advancedCategory.isVisible =
+            legacyPairingPreference.isVisible || phantomProcessControlPreference.isVisible
+    }
+
+    private fun showRevokeAllGrants() {
+        val context = requireContext()
+        if (!ShizukuStateMachine.isRunning()) {
+            Toast.makeText(context, R.string.settings_revoke_all_grants_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        revokeAllGrantsPreference.isEnabled = false
+        lifecycleScope.launch {
+            val targets = try {
+                withContext(Dispatchers.IO) {
+                    AuthorizationManager.getPackages(exclude = listOf(context.packageName))
+                        .mapNotNull { pi ->
+                            val uid = pi.applicationInfo?.uid ?: return@mapNotNull null
+                            if (AuthorizationManager.granted(pi.packageName, uid)) {
+                                pi.packageName to uid
+                            } else null
+                        }
+                }
+            } catch (tr: Throwable) {
+                revokeAllGrantsPreference.isEnabled = true
+                Toast.makeText(context, R.string.app_management_change_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            revokeAllGrantsPreference.isEnabled = true
+
+            if (targets.isEmpty()) {
+                Toast.makeText(context, R.string.settings_revoke_all_grants_none, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val message = resources.getQuantityString(
+                R.plurals.settings_revoke_all_grants_message,
+                targets.size,
+                targets.size,
+            )
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.settings_revoke_all_grants_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.settings_revoke_all_grants_action) { _, _ ->
+                    revokeAllGrants(context, targets)
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun revokeAllGrants(context: Context, targets: List<Pair<String, Int>>) {
+        revokeAllGrantsPreference.isEnabled = false
+        lifecycleScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) { AccessActions.setAll(context, targets, false) }
+            } catch (tr: Throwable) {
+                revokeAllGrantsPreference.isEnabled = true
+                Toast.makeText(context, R.string.app_management_change_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            revokeAllGrantsPreference.isEnabled = true
+
+            val message = if (result.failed == 0) {
+                resources.getQuantityString(
+                    R.plurals.settings_revoke_all_grants_done,
+                    result.succeeded,
+                    result.succeeded,
+                )
+            } else {
+                context.getString(
+                    R.string.settings_revoke_all_grants_partial,
+                    result.succeeded,
+                    result.failed,
+                )
+            }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
         super.onResume()
         preferenceScreen.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
         ShizukuStateMachine.addListener(stateListener)
+        refreshPhantomProcessControl()
     }
 
     override fun onPause() {
@@ -337,7 +424,10 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         when (key) {
-            KEY_WATCHDOG -> watchdogPreference.isChecked = ShizukuSettings.isWatchdogRunning()
+            KEY_WATCHDOG -> watchdogPreference.isChecked = ShizukuSettings.getWatchdog()
+            KEY_TCP_MODE, KEY_TCP_PORT -> if (::tcpModePreference.isInitialized) {
+                updateTcpModeSummary()
+            }
         }
     }
 
@@ -383,6 +473,190 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         }
     }
 
+    private fun applyPhantomProcessControl(prevent: Boolean) {
+        if (!::phantomProcessControlPreference.isInitialized) return
+        val context = requireContext()
+        lifecycleScope.launch {
+            phantomProcessControlPreference.isEnabled = false
+            when (val result = PhantomProcessControl.setPreventionEnabled(prevent)) {
+                PhantomProcessControl.Result.Success -> {
+                    ShizukuSettings.setPhantomProcessControl(prevent)
+                    phantomProcessControlPreference.isChecked = prevent
+                    phantomProcessControlPreference.summary = context.getString(
+                        if (prevent) R.string.settings_phantom_process_summary_on
+                        else R.string.settings_phantom_process_summary_off
+                    )
+                }
+                is PhantomProcessControl.Result.Failure -> {
+                    phantomProcessControlPreference.isChecked =
+                        ShizukuSettings.getPhantomProcessControl()
+                    MaterialAlertDialogBuilder(context)
+                        .setTitle(R.string.settings_phantom_process)
+                        .setMessage(
+                            context.getString(
+                                R.string.settings_phantom_process_failed,
+                                result.message
+                            )
+                        )
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            }
+            phantomProcessControlPreference.isEnabled = ShizukuStateMachine.isRunning()
+        }
+    }
+
+    private fun refreshPhantomProcessControl() {
+        if (!::phantomProcessControlPreference.isInitialized) return
+        if (!phantomProcessControlPreference.isVisible) return
+
+        val context = requireContext()
+        if (!ShizukuStateMachine.isRunning()) {
+            phantomProcessControlPreference.isEnabled = false
+            phantomProcessControlPreference.isChecked = ShizukuSettings.getPhantomProcessControl()
+            phantomProcessControlPreference.summary =
+                context.getString(R.string.settings_phantom_process_summary_unavailable)
+            return
+        }
+
+        phantomProcessControlPreference.isEnabled = false
+        lifecycleScope.launch {
+            val state = PhantomProcessControl.readState()
+            val prevent = state == PhantomProcessControl.State.DISABLED
+            phantomProcessControlPreference.isChecked = prevent
+            phantomProcessControlPreference.isEnabled = ShizukuStateMachine.isRunning()
+            phantomProcessControlPreference.summary = context.getString(
+                when (state) {
+                    PhantomProcessControl.State.DISABLED ->
+                        R.string.settings_phantom_process_summary_on
+                    PhantomProcessControl.State.DEFAULT ->
+                        R.string.settings_phantom_process_summary_off
+                    else -> R.string.settings_phantom_process_summary
+                }
+            )
+            if (state != PhantomProcessControl.State.UNKNOWN &&
+                state != PhantomProcessControl.State.UNSUPPORTED
+            ) {
+                ShizukuSettings.setPhantomProcessControl(prevent)
+            }
+        }
+    }
+
+    private fun updateTcpModeSummary() {
+        val context = requireContext()
+        val enabled = ShizukuSettings.getTcpMode()
+        val port = ShizukuSettings.getTcpPort()
+        tcpModePreference.summary = context.getString(
+            if (enabled) R.string.settings_tcp_mode_summary_on else R.string.settings_tcp_mode_summary_off,
+            port
+        )
+        tcpModePreference.icon = tcpRestartIcon()
+    }
+
+    private fun tcpRestartIcon(): Drawable? =
+        maybeGetRestartIcon(KEY_TCP_MODE) ?: maybeGetRestartIcon(KEY_TCP_PORT)
+
+    private fun showTcpModeDialog(lockMode: Boolean) {
+        val context = requireContext()
+        val binding = DialogTcpModeBinding.inflate(layoutInflater)
+
+        binding.tcpEnabled.isChecked = lockMode || ShizukuSettings.getTcpMode()
+        binding.tcpEnabled.isEnabled = !lockMode
+        binding.port.setText(ShizukuSettings.getTcpPort().toString())
+        binding.portLayout.isEnabled = binding.tcpEnabled.isChecked
+
+        binding.tcpEnabled.setOnCheckedChangeListener { _, checked ->
+            binding.portLayout.isEnabled = checked
+        }
+        binding.portLayout.setEndIconOnClickListener {
+            if (!binding.portLayout.isEnabled) return@setEndIconOnClickListener
+            binding.port.setText(TCP_RANDOM_PORT_RANGE.random().toString())
+            binding.portLayout.error = null
+        }
+
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.settings_tcp_mode)
+            .setView(binding.root)
+            .setPositiveButton(android.R.string.ok, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val enabled = lockMode || binding.tcpEnabled.isChecked
+                val portText = binding.port.text?.toString()?.trim().orEmpty()
+                val port = if (portText.isEmpty()) TCP_PORT_DEFAULT else portText.toIntOrNull()
+                if (port == null || port !in TCP_PORT_RANGE) {
+                    binding.portLayout.error = context.getString(R.string.snackbar_invalid_port)
+                    return@setOnClickListener
+                }
+                binding.portLayout.error = null
+                dialog.dismiss()
+                applyTcpSettings(enabled, port)
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun applyTcpSettings(enabled: Boolean, port: Int) {
+        val oldEnabled = ShizukuSettings.getTcpMode()
+        val oldPort = ShizukuSettings.getTcpPort()
+
+        if (oldEnabled == enabled && oldPort == port) {
+            updateTcpModeSummary()
+            return
+        }
+
+        val applyChange: () -> Unit = {
+            ShizukuSettings.setTcpMode(enabled)
+            ShizukuSettings.setTcpPort(port)
+            tcpModePreference.isEnabled = true
+            updateTcpModeSummary()
+        }
+
+        if (!enabled && oldEnabled) {
+            if (!ShizukuStateMachine.isRunning() && needsRestart(KEY_TCP_MODE, false)) {
+                promptStopTcp { applyChange() }
+            } else {
+                maybePromptRestart(KEY_TCP_MODE, false) { applyChange() }
+            }
+            return
+        }
+
+        maybePromptTcpRestart(enabled, port, applyChange)
+    }
+
+    private fun maybePromptTcpRestart(enabled: Boolean, port: Int, applyChange: () -> Unit) {
+        val context = requireContext()
+        val modeChanged = enabled != ShizukuSettings.getTcpMode()
+        val restartNeeded =
+            needsRestart(KEY_TCP_MODE, enabled) || needsRestart(KEY_TCP_PORT, port)
+
+        if (!ShizukuStateMachine.isRunning() || !restartNeeded) {
+            applyChange()
+            context.sendBroadcast(Intent(context, NotifCancelReceiver::class.java))
+            return
+        }
+
+        val message = buildString {
+            append(context.getString(R.string.settings_restart_dialog_message))
+            if (modeChanged) {
+                append(context.getString(R.string.settings_restart_dialog_message_wifi_required))
+            }
+        }
+
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.settings_restart_dialog_title)
+            .setMessage(HtmlCompat.fromHtml(message))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                applyChange()
+                ShizukuReceiverStarter.start(context, forceStart = true, allowMetered = true)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun maybeGetRestartIcon(setting: String): Drawable? {
         val context = requireContext()
         if (!needsRestart(setting)) return null
@@ -411,7 +685,12 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
                         summary = context.getString(R.string.settings_tcp_mode_closing_port)
                     }
                     AdbStarter.stopTcp(context, EnvironmentUtils.getAdbTcpPort())
-                    if (EnvironmentUtils.getAdbTcpPort() <= 0) applyChange()
+                    tcpModePreference.isEnabled = true
+                    if (EnvironmentUtils.getAdbTcpPort() <= 0) {
+                        applyChange()
+                    } else {
+                        updateTcpModeSummary()
+                    }
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -435,7 +714,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             .setMessage(HtmlCompat.fromHtml(message))
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 applyChange()
-                ShizukuReceiverStarter.start(context, true)
+                ShizukuReceiverStarter.start(context, forceStart = true, allowMetered = true)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -473,61 +752,32 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     }
 
     private fun setupLocalePreference(languagePreference: ListPreference) {
-        val localeTags = ShizukuLocales.LOCALES
-        val displayLocaleTags = ShizukuLocales.DISPLAY_LOCALES
+        val tags = arrayOf("SYSTEM", "en")
+        val entries = arrayOf(
+            getString(R.string.follow_system),
+            getString(R.string.language_english)
+        )
 
-        languagePreference.entries = displayLocaleTags
-        languagePreference.entryValues = localeTags
+        languagePreference.entries = entries
+        languagePreference.entryValues = tags
 
-        val currentLocaleTag = languagePreference.value
-        val currentLocaleIndex = localeTags.indexOf(currentLocaleTag)
-        val currentLocale = ShizukuSettings.getLocale()
-        val localizedLocales = mutableListOf<CharSequence>()
-
-        for ((index, displayLocale) in displayLocaleTags.withIndex()) {
-            if (index == 0) {
-                localizedLocales.add(getString(R.string.follow_system))
-                continue
-            }
-
-            val locale = Locale.forLanguageTag(displayLocale.toString())
-            val localeName = if (!TextUtils.isEmpty(locale.script))
-                locale.getDisplayScript(locale)
-            else
-                locale.getDisplayName(locale)
-
-            val localizedLocaleName = if (!TextUtils.isEmpty(locale.script))
-                locale.getDisplayScript(currentLocale)
-            else
-                locale.getDisplayName(currentLocale)
-
-            localizedLocales.add(
-                if (index != currentLocaleIndex) {
-                    "$localeName<br><small>$localizedLocaleName<small>".toHtml()
-                } else {
-                    localizedLocaleName
-                }
-            )
+        val current = languagePreference.value
+        if (current != "SYSTEM" && current != "en") {
+            languagePreference.value = "SYSTEM"
         }
 
-        languagePreference.entries = localizedLocales.toTypedArray()
+        languagePreference.summary =
+            if (languagePreference.value == "en") getString(R.string.language_english)
+            else getString(R.string.follow_system)
+    }
 
-        languagePreference.summary = when {
-            TextUtils.isEmpty(currentLocaleTag) || "SYSTEM" == currentLocaleTag -> {
-                getString(R.string.follow_system)
-            }
-            currentLocaleIndex != -1 -> {
-                val localizedLocale = localizedLocales[currentLocaleIndex]
-                val newLineIndex = localizedLocale.indexOf('\n')
-                if (newLineIndex == -1) {
-                    localizedLocale.toString()
-                } else {
-                    localizedLocale.subSequence(0, newLineIndex).toString()
-                }
-            }
-            else -> {
-                ""
-            }
-        }
+    private companion object {
+        /** Valid range for a user-supplied TCP port. */
+        val TCP_PORT_RANGE = 1..65535
+
+        /** Range used by the randomize action; IANA's dynamic/private port range. */
+        val TCP_RANDOM_PORT_RANGE = 49152..65535
+
+        const val TCP_PORT_DEFAULT = 5555
     }
 }

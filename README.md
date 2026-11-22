@@ -1,123 +1,118 @@
 <div align="center">
-   
-# Shizuku
 
-An Android app that allows other apps to use system-level APIs that require ADB/root privileges.
+<img src="manager/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="128" alt="Pigu icon" />
 
-**I'm pausing maintenance for the time being, I simply haven't had time to work on this and it was a side project.**
+# Pigu
 
-[![Stars](https://img.shields.io/github/stars/thedjchi/Shizuku?style=for-the-badge&color=bfb330&labelColor=807820&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHRpdGxlPnN0YXI8L3RpdGxlPjxwYXRoIGQ9Ik0xMiwxNy4yN0wxOC4xOCwyMUwxNi41NCwxMy45N0wyMiw5LjI0TDE0LjgxLDguNjJMMTIsMkw5LjE5LDguNjJMMiw5LjI0TDcuNDUsMTMuOTdMNS44MiwyMUwxMiwxNy4yN1oiIGZpbGw9IndoaXRlIiAvPjwvc3ZnPg==)](https://github.com/thedjchi/Shizuku/stargazers)
-[![Downloads](https://img.shields.io/github/downloads/thedjchi/Shizuku/total?style=for-the-badge&color=bf7830&labelColor=805020&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHRpdGxlPmRvd25sb2FkPC90aXRsZT48cGF0aCBkPSJNNSwyMEgxOVYxOEg1TTE5LDlIMTVWM0g5VjlINUwxMiwxNkwxOSw5WiIgZmlsbD0id2hpdGUiIC8+PC9zdmc+)](https://github.com/thedjchi/Shizuku/releases)
+Pigu gives Android apps access to system-level APIs that normally require ADB or root, through the Shizuku API.
 
-[![Latest Stable](https://img.shields.io/github/v/release/thedjchi/Shizuku?style=for-the-badge&color=3060bf&labelColor=204080&label=Latest%20Stable&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjRweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSIyNHB4IiBmaWxsPSIjZTNlM2UzIj48cGF0aCBkPSJNNDQwLTgycS03Ni04LTE0MS41LTQxLjV0LTExNC04N1ExMzYtMjY0IDEwOC0zMzNUODAtNDgwcTAtOTEgMzYuNS0xNjhUMjE2LTc4MGgtOTZ2LTgwaDI0MHYyNDBoLTgwdi0xMDlxLTU1IDQ0LTg3LjUgMTA4LjVUMTYwLTQ4MHEwIDEyMyA4MC41IDIxMi41VDQ0MC0xNjN2ODFabS0xNy0yMTRMMjU0LTQ2Nmw1Ni01NiAxMTMgMTEzIDIyNy0yMjcgNTYgNTctMjgzIDI4M1ptMTc3IDE5NnYtMjQwaDgwdjEwOXE1NS00NSA4Ny41LTEwOVQ4MDAtNDgwcTAtMTIzLTgwLjUtMjEyLjVUNTIwLTc5N3YtODFxMTUyIDE1IDI1NiAxMjh0MTA0IDI3MHEwIDkxLTM2LjUgMTY4VDc0NC0xODBoOTZ2ODBINjAwWiIvPjwvc3ZnPg==)](https://github.com/thedjchi/Shizuku/releases/latest?q=prerelease%3Afalse&expanded=true)
-[![Latest Beta](https://img.shields.io/github/v/release/thedjchi/Shizuku?sort=semver&style=for-the-badge&color=30bf60&labelColor=208040&label=Latest%20Beta&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjRweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSIyNHB4IiBmaWxsPSIjZTNlM2UzIj48cGF0aCBkPSJNMjAwLTEyMHEtNTEgMC03Mi41LTQ1LjVUMTM4LTI1MGwyMjItMjcwdi0yNDBoLTQwcS0xNyAwLTI4LjUtMTEuNVQyODAtODAwcTAtMTcgMTEuNS0yOC41VDMyMC04NDBoMzIwcTE3IDAgMjguNSAxMS41VDY4MC04MDBxMCAxNy0xMS41IDI4LjVUNjQwLTc2MGgtNDB2MjQwbDIyMiAyNzBxMzIgMzkgMTAuNSA4NC41VDc2MC0xMjBIMjAwWm04MC0xMjBoNDAwTDU0NC00MDBINDE2TDI4MC0yNDBabS04MCA0MGg1NjBMNTIwLTQ5MnYtMjY4aC04MHYyNjhMMjAwLTIwMFptMjgwLTI4MFoiLz48L3N2Zz4=)](https://github.com/thedjchi/Shizuku/releases)
-
-[![Bug Reports](https://img.shields.io/github/issues-search/thedjchi/Shizuku?query=label%3Abug%20state%3Aopen&style=for-the-badge&color=bf3030&labelColor=802020&label=Bug%20Reports)](https://github.com/thedjchi/Shizuku/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug)
-[![Feature Requests](https://img.shields.io/github/issues-search/thedjchi/Shizuku?query=label%3Aenhancement%20state%3Aopen&style=for-the-badge&color=30a7bf&labelColor=207080&label=Feature%20Requests)](https://github.com/thedjchi/Shizuku/issues?q=is%3Aissue%20state%3Aopen%20label%3Aenhancement)
-
-[![Translate on Crowdin](https://img.shields.io/badge/Translate%20on%20Crowdin-2e3340?style=for-the-badge&logo=crowdin&logoColor=ffffff)](https://crowdin.com/project/shizuku)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-bfb330?style=for-the-badge&logo=buymeacoffee&logoColor=ffffff)](https://www.buymeacoffee.com/thedjchi)
+It is a personal fork of [Shizuku](https://github.com/RikkaApps/Shizuku), based on the maintained fork by [thedjchi](https://github.com/thedjchi/Shizuku). The optional companion and the compatibility notes are inspired by [Porter](https://github.com/d4rken-org/porter).
 
 </div>
 
-## ⚠️ Disclaimer
+## What is Pigu?
 
-This is a **FORK** of Shizuku. If you are looking for the original version, please visit the [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku) repository.
+Pigu runs a small service as the `shell` user (through ADB or wireless debugging) or as `root`. Other apps talk to that service over Binder using the standard Shizuku API, so they can call privileged system APIs without being rooted themselves.
 
-## ⬇️ Download
+The app uses the package id `com.empty.pigu`, and its service is the same Shizuku-compatible server used by the upstream project.
 
-Get the latest [stable](https://github.com/thedjchi/Shizuku/releases/latest) or [beta](https://github.com/thedjchi/Shizuku/releases) version.
+## Features
 
-All versions are distributed via [GitHub Releases](https://github.com/thedjchi/Shizuku/releases).
+- **Start your way:** wireless debugging (including Android 11+ pairing), a computer via `adb`, or root. A wireless-debugging pairing appears as **Pigu** in Android's Paired devices list.
+- **Simple home controls:** start/stop the service with a confirmation, see the service state, authorized-app count, and collapsible Pigu/Shizuku/device details. There is no pause or Quick Settings tile.
+- **Access control:** a hardened permission prompt, App Management with search/filter/sort and per-app details, a local access log, “revoke all app grants,” and a persistent root-mode warning.
+- **Automation:** intents for Tasker, MacroDroid, Automate, etc.; TCP mode; and a direct local-TCP start from Pairing methods.
+- **Reliability:** a two-layer watchdog, bounded restart recovery, start-on-boot, and guards against duplicate or accidental starts.
+- **Diagnostics:** Service Doctor, copyable diagnostics, and the last Starter transcript for bug reports.
+- **Accessibility services (developer tool):** a read-only list under **Developer → Tools**; only a service that is already enabled can be pinned for keep-alive, after an explicit screen/input warning. Pigu never enables or disables services itself.
+- **Compatibility:** Android 7.0+, TV/VR and D-pad support, Android 17 / SDK 37 compatibility, one local-network permission gate, and an English-only UI.
+- **Optional companion:** for apps that hard-code the official Shizuku package name.
 
-## ✨ Added Features
+[Full feature list →](docs/FEATURES.md)
 
-This version of Shizuku includes some extra features over the original version, such as:
-* **More robust "start on boot":** waits for a Wi-Fi connection before starting the Shizuku service
-* **TCP mode:** (i.e., the `adb tcpip` command) once Shizuku successfully starts with Wi-Fi after a reboot, you can stop/restart Shizuku without a Wi-Fi connection!
-* **Watchdog service:** automatically restarts Shizuku if it stops unexpectedly, and can alert you of crashes/potential fixes
-* **Start/stop intents:** toggle Shizuku on-demand using automation apps (e.g., Tasker, MacroDroid, Automate)
-* **[BETA] Stealth mode:** hide Shizuku from other apps that don't work when Shizuku is installed
-* **[BETA] In-app updates:** option to automatically check for new updates, and can automatically download/install the latest version from GitHub
-* **Android/Google TV and VR headset support:** UI is now compatible with D-Pad remotes, all TVs are supported (including Android 14+ TVs that require pairing), and the multi-window pairing dialog is toggleable in settings for VR headsets
-* **MediaTek support:** fixes a critical bug in the original v13.6.0 which prevented Shizuku from working on MediaTek devices
-* And more!
+## Requirements
 
-## 📝 User Guide
+- Android 7.0 or newer.
+- **Root mode:** a rooted device.
+- **Wireless debugging:** Android 11+ and most Android TVs.
+- **PC mode:** any device with `adb` access.
+- **Start on boot:** available with wireless debugging or root mode.
 
-Please read the [wiki](https://github.com/thedjchi/Shizuku/wiki) for setup, info, and troubleshooting steps.
+## Quick start
 
-## ☑️ Requirements
+1. Enable **Developer options → Wireless debugging** on the device.
+2. Open Pigu → **Start service** → **Start via Wireless debugging**.
+3. Pair once with the code from Android, then tap **Start**.
 
-**Minimum Version: Android 7+**
-- **Root mode:** Requires a rooted device
-- **Wireless Debugging mode:** Works on Android 11+ and all Android TVs
-- **PC mode:** Works on all devices
-- **Start on boot:** Available only when using Wireless Debugging or Root mode
+**Other start methods**
 
-## 🔒 Privacy
+- **PC:** Pigu → **Start service** → **Start by connecting to a computer** → **View command**, then run the command with `adb`.
+- **Root:** Pigu → **Start service** → **Root** (only shown when root is available; confirm the root warning once).
 
-Shizuku takes user privacy very seriously.
+To stop, use **Stop** on the home card. To restart, stop and then start again. Pigu has no global pause and no Quick Settings tile; stopping the service is the way to cut access.
 
-* No tracking or analytics
-* No telemetry
-* No proprietary libraries
-* No Google Play Services
-* Open-source codebase
-* Reproducible builds
-* Internet access is only used for wireless debugging connections and to fetch updates from GitHub
-* Only required permissions are declared
+## Versioning
 
-### Permissions
+Pigu uses its own semantic version, independent of the Shizuku API/server version:
 
-* **INTERNET:** required for the wireless debugging start mode to work. Also used to fetch updates from GitHub
-* **ACCESS_NETWORK_STATE:** used to determine when Wi-Fi is available for background start via wireless debugging
-* **POST_NOTIFICATIONS:** required for pairing notification and other alerts
-* **RECEIVE_BOOT_COMPLETED:** required for start on boot
-* **FOREGROUND_SERVICE:** prevents watchdog from being killed
-* **REQUEST_IGNORE_BATTERY_OPTIMIZATIONS:** prevents start on boot and watchdog services from being killed
-* **WRITE_SECURE_SETTINGS:** used to toggle USB and wireless debugging in the background when starting/stopping Shizuku
-* **REQUEST_DELETE_PACKAGES:** used to request uninstall for Shizuku/stub when using stealth mode
-* **REQUEST_INSTALL_PACKAGES:** used to request install for app updates, as well as Shizuku stub when using stealth mode
+- **Pigu app version:** `2.1.0` — the value under **App & service details → Pigu version**.
+- **Shizuku API/server version:** `13.6` — the value on the service card and under **Shizuku version**.
+- **Version code:** `major * 10000 + minor * 100 + patch` (`2.1.0` → `20100`). Minor and patch stay in `0..99`.
+- A `-Pbeta` build appends `-beta` to the displayed version name.
 
-## 🌎 Translations
+Bump the three numbers in the root `build.gradle` (`piguVersionMajor`, `piguVersionMinor`, `piguVersionPatch`). The API submodule and the `13.6` server compatibility number are not changed by a Pigu release.
 
-Contribute translations through the [Crowdin project](https://crowdin.com/project/shizuku).
+## Privacy at a glance
 
-## 🎁 Donations
+- No tracking, analytics, telemetry, proprietary libraries, or Google Play Services.
+- Internet access is only used for wireless debugging connections.
+- The access log, automation token, and Starter transcript stay on the device and are excluded from backup.
+- Diagnostics never include the auth token, Wi-Fi names, IP addresses, app lists, or the Starter transcript.
+- Only the permissions needed for the service and pairing are declared.
 
-This Shizuku fork and all of its features will always be free, and there will never be ads. If you've found any of the added features to be useful, consider [donating](https://www.buymeacoffee.com/thedjchi) to help me maintain the project!
+[Privacy and permissions →](docs/PRIVACY.md)
 
-## 📱 Developer Guide
+## Build
 
-### API & Demo Project
-The API guide and a demo project are available in the [Shizuku-API](https://github.com/thedjchi/Shizuku-API) repository
+```bash
+git clone --recurse-submodules https://github.com/8mpty/Pigu.git
+cd Pigu
+./gradlew :manager:assembleDebug
+```
 
-### Notes
+The optional companion builds with `./gradlew :companion:assembleDebug`. See [Building and testing](docs/BUILDING.md) for release signing, the debug server, tests, and the API submodule.
 
-1. Shizuku has different permissions in root and ADB mode. You can see permissions granted to ADB [here](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/packages/Shell/AndroidManifest.xml).
-   If your app requires root permission, use `ShizukuService#getUid` to check if Shizuku is running as root or ADB, or use `ShizukuService#checkPermission` to check if the server has sufficient permissions.
-2. On devices running Android 8 or lower, if you need to use Shizuku in a Service or Broadcast Receiver that might not be started by an Activity, please trigger the send binder by starting a transparent activity.
-3. Please prefer using `ShizukuBinderWrapper` instead of directly using `transactRemote` when possible, as API calls can change across Android versions.
+## Documentation
 
-## 🤝 Contritbuting
+| Document | Contents |
+| --- | --- |
+| [Features](docs/FEATURES.md) | The complete feature list and behavior details. |
+| [Companion app](docs/COMPANION.md) | Install paths, limitations, and Android 17 debugging settings. |
+| [Privacy and permissions](docs/PRIVACY.md) | What is stored, what is excluded from backup, and every declared permission. |
+| [Building and testing](docs/BUILDING.md) | Build commands, release signing, the debug server, and JVM tests. |
+| [Fork history](docs/HISTORY.md) | The detailed change history and the phases behind the current feature set. |
+| [API submodule](API-SUBMODULE.md) | Pigu-API pinning and submodule maintenance notes. |
+| [Security policy](SECURITY.md) | The inherited Shizuku security policy and reporting guidance. |
 
-### Building the App
+## Credits and inspirations
 
-- Clone with `git clone --recurse-submodules`
-- Run gradle task `:manager:assembleDebug` or `:manager:assembleRelease`
+### Base projects
 
-The `:manager:assembleDebug` task generates a debuggable server. You can attach a debugger to `shizuku_server` to debug the server. In Android Studio, ensure `Run/Debug configurations > Always install with package manager` is checked, so that the server will use the latest code.
+- [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku) — the original Shizuku app and API.
+- [thedjchi/Shizuku](https://github.com/thedjchi/Shizuku) — the maintained fork this project is based on; start-on-boot, TCP mode, watchdog, TV/VR support, and MediaTek fixes come from that work.
+- [8mpty/Pigu-API](https://github.com/8mpty/Pigu-API) — the API submodule used by this build; it is an unmodified base of thedjchi/Shizuku-API.
+- [d4rken-org/porter](https://github.com/d4rken-org/porter) — the companion-app compatibility approach, permission-security discipline, and app-management ideas.
 
-### Submitting Changes
+### Inspirations
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b branch-name`)
-3. Make your changes
-4. Commit your changes (`git commit -m 'Commit message'`)
-5. Push to the branch (`git push origin branch-name`)
-6. Open a Pull Request
+- [ShizukuPlus](https://github.com/thejaustin/ShizukuPlus) — Service Doctor checklist, Quick Settings/TCP/OTG patterns, and setup UX ideas.
+- [Shizuku-Next](https://github.com/rushiranpise/Shizuku-Next) — watchdog probe/breaker, start status, and wireless port-hunt ideas.
+- [Nightzuku](https://github.com/kerneldroid/Nightzuku) — permission-dialog hardening, signature pinning, and server-watchdog ideas.
+- [Shevery](https://github.com/HmnDev-Tech/shevery) — starter supervision and server-hang detection ideas.
+- [Shizako](https://github.com/cr1437/Shizako) — local access-log ideas.
 
-## 📃 License
+All upstream contributors and translators whose work these projects build on are gratefully acknowledged.
 
-All code files in this project are licensed under [Apache 2.0](LICENSE)
+## License
+
+All code files in this project are licensed under [Apache 2.0](LICENSE). The Shizuku API submodule retains its own license.

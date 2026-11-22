@@ -1,14 +1,35 @@
 <resources>
-    <string name="app_name" translatable="false">Shizuku</string>
+    <string name="app_name" translatable="false">Pigu</string>
 
     <!-- To translators: you can leave your here -->
-    <string name="translation_contributors" />
 
     <!-- Home - Status -->
-    <string name="home_status_service_is_running">%1$s is running</string>
     <string name="home_status_service_not_running">%1$s is not running</string>
-    <string name="home_status_service_version">Version %2$s, %1$s</string>
-    <string name="home_status_service_version_update"><![CDATA[Version %2$s, %1$s<br>Start again to update to version %3$s]]></string>
+    <string name="home_status_label_running">Running</string>
+    <string name="home_status_label_stopped">Stopped</string>
+    <string name="home_status_label_error">Error</string>
+    <string name="home_status_label_starting">Starting</string>
+    <string name="home_status_label_stopping">Stopping</string>
+    <string name="home_status_update_hint">Stop and start to update the service to %1$s</string>
+    <string name="home_service_start">Start service</string>
+    <string name="home_service_detail_running">Shizuku %1$s · %2$s</string>
+    <string name="home_service_detail_ready">Service is ready</string>
+    <string name="home_service_detail_stopped">Service is not running</string>
+    <string name="home_service_detail_error">The service stopped unexpectedly</string>
+    <string name="home_service_detail_starting">Waiting for the service…</string>
+    <string name="home_service_detail_stopping">Stopping the service…</string>
+    <string name="home_apps_title">Apps with access</string>
+    <plurals name="home_apps_summary">
+        <item quantity="one">%1$d of %2$d app authorized</item>
+        <item quantity="other">%1$d of %2$d apps authorized</item>
+    </plurals>
+    <string name="home_apps_empty">No apps authorized yet</string>
+    <string name="home_apps_a11y">Apps with access. %1$s. Opens App Management.</string>
+    <string name="restart_service">Restart</string>
+    <string name="dialog_restart_service_title">Restart Pigu?</string>
+    <string name="dialog_restart_service_message">The service will stop and start again using the last working method. Apps lose access for a few seconds. This is the safe way to load a newer server after updating Pigu.</string>
+    <string name="dialog_restart_service_message_root">The root service will stop and start again. Every authorized app loses access for a few seconds.</string>
+    <string name="service_restart_started">Restarting Pigu…</string>
 
     <!-- Home - Adb -->
     <string name="home_adb_title"><![CDATA[Start by connecting to a computer]]></string>
@@ -70,12 +91,16 @@
     <string name="home_root_button_restart">Restart</string>
 
     <!-- Home - Application management -->
-    <string name="home_app_management_title">Application management</string>
+    <string name="home_app_management_title">App Management</string>
     <plurals name="home_app_management_authorized_apps_count">
         <item quantity="one"><![CDATA[Authorized %d application]]></item>
         <item quantity="other"><![CDATA[Authorized %d applications]]></item>
     </plurals>
-    <string name="home_app_management_view_authorized_apps"><![CDATA[Tap to manage authorized apps]]></string>
+    <plurals name="home_app_management_companion_candidates">
+        <item quantity="one"><![CDATA[%d older client may need the companion · tap to review]]></item>
+        <item quantity="other"><![CDATA[%d older clients may need the companion · tap to review]]></item>
+    </plurals>
+    <string name="home_app_management_view_authorized_apps"><![CDATA[Tap to discover and manage apps]]></string>
     <string name="home_app_management_empty">Apps that have requested or declared the Shizuku permission will show here.</string>
 
     <!-- Home - Automation -->
@@ -91,10 +116,6 @@
     <string name="home_automation_regenerate_token">Regenerate token?</string>
     <string name="home_automation_regenerate_token_message">You will need to reconfigure your intents with the new token.</string>
 
-    <!-- Home - Stealth mode -->
-    <string name="home_stealth_title">Hide Shizuku from other apps</string>
-    <string name="home_stealth_description">Note: Enabling this feature may cause apps that rely on Shizuku to stop functioning correctly.</string>
-
     <!-- Home - Learn more -->
     <string name="home_learn_more_title">Developer guide</string>
     <string name="home_learn_more_description">Learn how to develop with Shizuku</string>
@@ -102,6 +123,56 @@
     <!-- Home - Adb permissions limited -->
     <string name="home_adb_is_limited_title">You need to take an extra step</string>
     <string name="home_adb_is_limited_description">Your device manufacturer has restricted adb permissions and apps using Shizuku will not work properly.\n\nUsually, this limitation can be lifted by adjusting some options in \"Developer options\". Please read the help for details on how to do this.\n\nYou may need to restart Shizuku for the operation to take effect.</string>
+
+    <!-- Home - Pairing methods -->
+    <string name="home_pairing_methods_title">Pairing methods</string>
+    <string name="home_pairing_methods_description">Choose how to start Shizuku</string>
+    <string name="start_methods_title">Pairing methods</string>
+    <string name="home_start_pair">Pair</string>
+    <string name="start_wireless_summary">Start Shizuku over Wi-Fi using wireless debugging.</string>
+    <string name="start_local_tcp_title">Start over local TCP</string>
+    <string name="start_local_tcp_summary">Skip mDNS and connect directly to 127.0.0.1 on a port that adb is already listening on. No Wi-Fi needed, but the port must already be open.</string>
+    <string name="start_local_tcp_button">Enter port</string>
+    <string name="dialog_local_tcp_title">Start over local TCP</string>
+    <string name="dialog_local_tcp_message">This skips Wi-Fi and discovery. It only works if adb is already listening on this port — for example after running adb tcpip 5555 from a computer, or when TCP mode kept the port open.\n\nIf nothing is listening, the Starter screen reports a connection error instead of searching for wireless debugging.</string>
+    <string name="dialog_local_tcp_port">Port</string>
+    <string name="dialog_local_tcp_helper">Example: 5555. The port must already be listening.</string>
+    <string name="dialog_local_tcp_invalid">Port must be an integer from 1 to 65535.</string>
+    <string name="dialog_local_tcp_start">Start</string>
+    <string name="local_tcp_connect_failed">Could not connect to 127.0.0.1:%1$d.\n\nMake sure adb is already listening on that port. Connect by USB and run adb tcpip %1$d, or enable TCP mode before losing Wi-Fi. This action does not open the port for you.</string>
+    <string name="start_adb_summary">Start Shizuku by running the adb command from a computer.</string>
+    <string name="start_root_summary">Start Shizuku with root (Magisk, KernelSU, or similar).</string>
+    <string name="start_root_unavailable">Root was not detected on this device.</string>
+    <string name="stop_service">Stop</string>
+    <string name="dialog_stop_title">Stop Shizuku?</string>
+    <string name="dialog_stop_message_reactivate">Shizuku will stop and all apps using it will lose access. You will need to start Shizuku again and re-pair or re-activate it before apps can use it.</string>
+
+    <!-- Home - Details -->
+    <string name="details_title">App &amp; service details</string>
+    <string name="details_collapsed_hint">Versions, Device and TCP details</string>
+    <string name="details_expand_action">Show details</string>
+    <string name="details_collapse_action">Hide details</string>
+    <string name="details_pigu_version">Pigu version</string>
+    <string name="details_shizuku_version">Shizuku version</string>
+    <string name="details_android_version">Android version</string>
+    <string name="details_abi">ABI</string>
+    <string name="details_pairing_method">Pairing method</string>
+    <string name="details_authorized_apps">Authorized apps</string>
+    <string name="details_companion">Companion app</string>
+    <string name="details_companion_installed">Installed</string>
+    <string name="details_companion_not_installed">Not installed</string>
+    <string name="details_companion_other">Other app</string>
+    <string name="details_start_on_boot">Start on boot</string>
+    <string name="details_tcp_mode">TCP mode</string>
+    <string name="details_tcp_port">TCP port</string>
+    <string name="details_pairing_root">Root</string>
+    <string name="details_pairing_wireless">Wireless debugging</string>
+    <string name="details_pairing_adb">ADB (computer)</string>
+    <string name="details_pairing_unknown">Unknown</string>
+    <string name="details_not_running">Not running</string>
+    <string name="details_enabled">Enabled</string>
+    <string name="details_disabled">Disabled</string>
+    <string name="details_unavailable">—</string>
 
     <!-- Home - Dialogs -->
     <string name="home_dialog_reboot_required_title">Reboot required</string>
@@ -129,31 +200,40 @@
     <string name="terminal_tutorial_3">Open a shell with the following command:</string>
     <string name="rish_description"><![CDATA[With %1$s, you can run shell commands in any terminal app.<p>Tap to learn more about how to use it.]]></string>
 
-    <!-- Stealth -->
-    <string name="stealth_warning_compatibility">Some apps that use Shizuku may not work when Shizuku is hidden because they try to detect if Shizuku is installed.</string>
-    <string name="stealth_warning_compatibility_2">As a workaround, you can temporarily unhide Shizuku, which installs a stub with the original package name. When you are finished, you can re-hide Shizuku.</string>
-    <string name="stealth_warning_compatibility_3">Tap this card to copy a code snippet you can send to the developer so their \"Shizuku installed\" check will work when Shizuku is hidden.</string>
-    <string name="stealth_warning_detection">Some apps may still be able to detect Shizuku even when hidden.</string>
-    <string name="stealth_info_reconfigure">You will need to re-pair and re-configure Shizuku after installing the hidden version.</string>
-    <string name="stealth_info_rish">Rish users: re-export the files after installing the hidden version.</string>
-    <string name="stealth_info_intents">Intent users: update your intents with the new package name.</string>
-    <string name="stealth_info_update">You must update Shizuku through the app when using the hidden version because it has a different signature.</string>
-    <string name="stealth_package_name">Package name (optional)</string>
-    <string name="stealth_package_name_helper_text">If left empty, a random suffix will be added to the package name.</string>
-    <string name="stealth_error_ends_with_period">Package name cannot end with a period.</string>
-    <string name="stealth_error_invalid_characters">Only letters, numbers, and periods are allowed.</string>
-    <string name="stealth_error_needs_two_segments">Package name must have at least two segments.</string>
-    <string name="stealth_error_segment_starts_with_number">Segments cannot start with a number.</string>
-    <string name="stealth_choose_folder_message">Choose a folder where the new APK will be saved.</string>
-    <string name="stealth_uninstall_required">Uninstall required</string>
-    <string name="stealth_uninstall_message">The system will now prompt you to uninstall Shizuku. Then, install the clone.</string>
-    <string name="stealth_uninstall">Uninstall</string>
-    <string name="stealth_hide">Hide</string>
-    <string name="stealth_unhide">Unhide</string>
-
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="shortcut_start_service_short">Start service</string>
+    <string name="shortcut_start_service_long">Start Pigu service</string>
+    <string name="shortcut_app_management_short">App Management</string>
+    <string name="shortcut_app_management_long">Open App Management</string>
+    <string name="shortcut_developer_short">Developer</string>
+    <string name="shortcut_developer_long">Open Developer page</string>
+    <string name="shortcut_service_already_running">Pigu is already running.</string>
+    <string name="local_network_permission_denied">Local network access is required to find wireless debugging and pairing services. Allow it when prompted, or in Android settings.</string>
+    <string name="local_network_notification_channel">Local network access</string>
+    <string name="local_network_notification_title">Local network access is off</string>
+    <string name="local_network_notification_message">Pigu could not search for wireless debugging in the background. Tap to grant local network access, then start Pigu again.</string>
+    <string name="local_network_action_open">Open Pigu</string>
     <string name="settings_behavior">Behavior</string>
+    <string name="settings_access_control">Access control</string>
+    <string name="settings_access_log">Access log</string>
+    <string name="settings_access_log_summary">Review permission, grant, and automation events. Local only.</string>
+    <string name="settings_revoke_all_grants">Revoke all app grants</string>
+    <string name="settings_revoke_all_grants_summary">Every app must request access again. No undo; requires a running service.</string>
+    <string name="settings_revoke_all_grants_title">Revoke all app grants?</string>
+    <string name="settings_revoke_all_grants_action">Revoke all</string>
+    <string name="settings_revoke_all_grants_none">No app grants to revoke.</string>
+    <string name="settings_revoke_all_grants_unavailable">Start Pigu before changing app grants.</string>
+    <string name="settings_revoke_all_grants_partial">Revoked %1$d grants; %2$d could not be changed.</string>
+    <plurals name="settings_revoke_all_grants_message">
+        <item quantity="one">Revoke access from %1$d app? It must request permission again.</item>
+        <item quantity="other">Revoke access from all %1$d apps? They must request permission again.</item>
+    </plurals>
+    <plurals name="settings_revoke_all_grants_done">
+        <item quantity="one">Revoked %1$d app grant.</item>
+        <item quantity="other">Revoked %1$d app grants.</item>
+    </plurals>
+    <string name="settings_networking_adb">Networking &amp; ADB</string>
     <string name="settings_start_on_boot">Start on boot</string>
     <string name="settings_start_on_boot_summary">Requires Android 11+ or root</string>
     <string name="settings_start_on_boot_bug">Due to a bug in Android 11-12, wireless debugging does not remember any authorized networks.\n\nYou will need to re-authorize the network on each reboot by tapping \"Allow\" when the authorization dialog pops up.</string>
@@ -161,32 +241,104 @@
     <string name="settings_watchdog">Watchdog</string>
     <string name="settings_watchdog_summary">Automatically restart Shizuku if it crashes</string>
     <string name="settings_tcp_mode">TCP mode</string>
-    <string name="settings_tcp_mode_summary">"Allows Shizuku to restart without Wi-Fi. (Shizuku must have started once since reboot)"</string>
+    <string name="settings_tcp_mode_summary_on">On · port %1$d · tap to change</string>
+    <string name="settings_tcp_mode_summary_off">Off · tap to choose a port</string>
+    <string name="settings_tcp_mode_dialog_enable">Enable TCP mode</string>
+    <string name="settings_tcp_mode_dialog_description">Keeps the ADB TCP port available so Pigu can restart without Wi-Fi after the first start. Randomize picks an unused high port.</string>
+    <string name="settings_tcp_mode_randomize">Randomize</string>
     <string name="settings_tcp_mode_dialog_close_port">"The TCP port will be closed immediately. You will need Wi-Fi to turn on TCP mode again. Continue?"</string>
     <string name="settings_tcp_mode_closing_port">Closing TCP port...</string>
     <string name="settings_restart_dialog_title">Restart Required</string>
     <string name="settings_restart_dialog_message">Shizuku needs to restart in order to apply this setting.</string>
     <string name="settings_restart_dialog_message_wifi_required"><![CDATA[<br><br><b>Wi-Fi is required. Shizuku will continue running and wait for a Wi-Fi connection before restarting in the background.</b>]]></string>
     <string name="settings_tcp_port">TCP port</string>
-    <string name="settings_tcp_port_default">Default (5555)</string>
-    <string name="settings_tcp_port_hint">Leave blank to use default (5555)</string>
     <string name="settings_auto_disable_usb_debugging">Auto-disable USB debugging</string>
     <string name="settings_auto_disable_usb_debugging_summary">Disable USB debugging when stopping Shizuku</string>
+    <string name="settings_auto_disable_usb_debugging_summary_restricted">Best effort: this build requires USB debugging to be disabled manually</string>
+    <string name="settings_keep_wireless_debugging">Keep wireless debugging on</string>
+    <string name="settings_keep_wireless_debugging_summary">Don\'t turn off wireless debugging after Pigu connects</string>
+    <string name="settings_keep_wireless_debugging_summary_restricted">Best effort: this build requires wireless debugging to be turned off manually</string>
+    <string name="settings_keep_wireless_debugging_dialog_title">Keep wireless debugging on?</string>
+    <string name="settings_keep_wireless_debugging_dialog_message">Pigu will leave Android\'s wireless debugging switch enabled after it connects.\n\n• The ADB port stays open while wireless debugging is on.\n• Any device on the same network with your ADB key can try to connect.\n• Android keeps the wireless debugging notification visible.\n• This increases the attack surface and may use more battery.\n\nUse it only on networks you trust, and turn it off when you no longer need it. When this is off, Pigu turns wireless debugging off again after connecting.</string>
+    <string name="settings_keep_wireless_debugging_enable">Keep it on</string>
+    <string name="settings_developer_options">Developer options</string>
+    <string name="settings_developer_options_summary">Android requires USB and wireless debugging to be enabled or disabled manually on this build</string>
+    <string name="settings_developer_options_dialog_message">Android no longer allows Pigu to change USB or wireless debugging settings automatically on this build. Use Developer options to enable or disable them manually.\n\nPigu can still start and use the service when the required debugging mode is already enabled.</string>
+    <string name="settings_developer_options_open">Open Developer options</string>
     <string name="settings_language">Language</string>
-    <string name="settings_translation_contributors">Translation contributors</string>
-    <string name="settings_translation">Participate in translation</string>
-    <string name="settings_translation_summary">Help us translate %s into your language</string>
     <string name="settings_user_interface">Appearance</string>
     <string name="settings_black_night_theme">Black night theme</string>
     <string name="settings_black_night_theme_summary">Use the pure black theme if night mode is enabled</string>
-    <string name="settings_support">Support</string>
-    <string name="settings_update_stable">Stable</string>
-    <string name="settings_update_beta">Beta</string>
-    <string name="settings_help">Help</string>
+    <string name="developer_title">Developer</string>
+    <string name="developer_section_apps">Apps and access</string>
+    <string name="developer_section_tools">Tools</string>
+    <string name="accessibility_services_title">Accessibility services</string>
+    <string name="accessibility_services_card_summary">View installed accessibility services and keep pinned ones enabled</string>
+    <string name="accessibility_services_intro">This list is read-only. Enable or disable services in Android\'s accessibility settings; Pigu can only keep services you already enabled and explicitly pinned.</string>
+    <string name="accessibility_keep_alive_category">Keep-alive</string>
+    <string name="accessibility_keep_alive_title">Keep pinned services alive</string>
+    <string name="accessibility_keep_alive_summary">Restores pinned services if the system disables them. Needs WRITE_SECURE_SETTINGS; a foreground notification stays visible.</string>
+    <string name="accessibility_auto_boot_title">Start keep-alive on boot</string>
+    <string name="accessibility_auto_boot_summary">Starts the background service after a reboot. Only applies while keep-alive is on.</string>
+    <string name="accessibility_permission_title">Secure settings permission</string>
+    <string name="accessibility_permission_missing">Grant it once with this command, then reopen this page:</string>
+    <string name="accessibility_permission_copied">Command copied</string>
+    <string name="accessibility_services_category">Installed services</string>
+    <string name="accessibility_services_empty">No accessibility services are installed.</string>
+    <string name="accessibility_service_disabled">Disabled — enable it in Android\'s accessibility settings</string>
+    <string name="accessibility_service_pinned">Pinned — kept enabled</string>
+    <string name="accessibility_service_disabled_pinned">Disabled — pinned; unpin to stop restoring it</string>
+    <string name="accessibility_service_enabled">Enabled — pin to keep it enabled</string>
+    <string name="accessibility_pin_confirm_title">Keep %1$s enabled?</string>
+    <string name="accessibility_pin_confirm_message">Pigu will restore this accessibility service if the system disables it, and will turn accessibility back on if needed.\n\nAccessibility services can read the screen and perform actions. Only pin services you trust. Unpin this service to stop.</string>
+    <string name="accessibility_pin_confirm_action">Pin service</string>
+    <string name="accessibility_open_system_settings">Open Android accessibility settings</string>
+    <string name="accessibility_keep_alive_notification_title">Accessibility keep-alive</string>
+    <string name="accessibility_keep_alive_notification_text">Keeping pinned accessibility services enabled</string>
+    <string name="accessibility_keep_alive_turn_off">Turn off keep-alive</string>
+    <string name="background_running_title">Pigu background service</string>
+    <string name="background_running_text">Watchdog and accessibility keep-alive are running</string>
+    <string name="developer_section_help">Diagnostics and help</string>
+    <string name="home_diagnostics_title">Copy diagnostics</string>
+    <string name="home_diagnostics_description">Copy app, device, and service details for a bug report. The auth token, Wi-Fi name, IP addresses, and app list are never included.</string>
+    <string name="home_diagnostics_action">Tap to copy a snapshot</string>
+    <string name="companion_title">Companion app</string>
+    <string name="companion_summary_not_installed">Not installed · Tap to install</string>
+    <string name="companion_summary_installed">Installed · %1$s</string>
+    <string name="companion_summary_other">Another app · %1$s</string>
+    <string name="companion_dialog_message">Pigu uses the package %1$s. Some apps check specifically for the official Shizuku package %2$s and refuse to work when it is missing.\n\nThe companion is an empty, non-launchable app with that package name. It does not run a service or ask for permissions — Pigu still provides Shizuku.\n\nIf installed: apps that hard-check the package can find Pigu. If not installed: apps using the normal Shizuku API still work, but apps with a hard package check may report that Shizuku is missing.\n\nThe companion cannot be installed while the official Shizuku app (or a fork using that package) is installed.</string>
+    <string name="companion_install_with_pigu">Install with Pigu</string>
+    <string name="companion_install_use_system">Use system installer</string>
+    <string name="companion_sheet_description">Optional. Uses the official Shizuku package name so apps that hard-check for Shizuku can find Pigu. It has no UI and does not run the service.</string>
+    <string name="companion_sheet_installed_description">Installed. Pigu still runs the service; the companion only satisfies the package check.</string>
+    <string name="companion_sheet_other_description">Another app owns the official Shizuku package. Uninstall it before installing the companion.</string>
+    <string name="companion_about">About the companion</string>
+    <string name="companion_installing">Installing companion…</string>
+    <string name="companion_install_success">Companion installed</string>
+    <string name="companion_install_system_opened">Opened the system installer. Confirm the install there.</string>
+    <string name="companion_install_failed">Install failed</string>
+    <string name="companion_install_conflict">The package moe.shizuku.privileged.api is already used by another app with a different signature. Uninstall that app first.</string>
+    <string name="companion_install_asset_missing">This build does not include the companion APK.</string>
+    <string name="companion_install_no_installer">No app is available to open the system installer.</string>
+    <string name="companion_open_settings">App info</string>
+    <string name="companion_close">Close</string>
+    <string name="app_management_may_require_companion">May require companion app</string>
+    <string name="app_management_companion_info_title">App discovery and companion</string>
+    <string name="app_management_companion_info_message">Apps that declare the Shizuku permission are listed here, including apps you have not authorized yet. A client marked as an older client does not advertise V3 support, so it is more likely to check for the official Shizuku package.\n\nInstall the Pigu Companion only if an app reports that Shizuku is missing. It uses the official package name moe.shizuku.privileged.api. It does not provide the service; Pigu still does. Its install, status and uninstall options are on the Developer page.</string>
+    <string name="language_english" translatable="false">English</string>
     <string name="settings_report_bug">Report a bug</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_legacy_pairing">Legacy pairing</string>
     <string name="settings_legacy_pairing_summary">Enter the pairing code in a dialog instead of a notification</string>
+    <string name="settings_phantom_process">Prevent phantom process killing</string>
+    <string name="settings_phantom_process_summary">Experimental: stop Android from reaping Pigu\'s server process (Android 12+)</string>
+    <string name="settings_phantom_process_summary_on">On · Android\'s global phantom-process limit is disabled</string>
+    <string name="settings_phantom_process_summary_off">Off · Android\'s default phantom-process limit is active</string>
+    <string name="settings_phantom_process_summary_unavailable">Start Pigu to change this setting</string>
+    <string name="settings_phantom_process_dialog_title">Disable Android\'s phantom-process limit?</string>
+    <string name="settings_phantom_process_dialog_message">Android 12 and newer can kill Pigu\'s shell process as a “phantom process” when the device is under memory pressure.\n\nDisabling the limit may keep Pigu running, but it changes a global setting for every app. It can increase battery use and let runaway background processes continue. It does not override an OEM\'s own process manager, and it may not survive an Android update.\n\nYou can restore Android\'s default from this screen at any time.</string>
+    <string name="settings_phantom_process_enable">Disable the limit</string>
+    <string name="settings_phantom_process_failed">Could not change the phantom-process setting: %1$s</string>
 
     <!-- Bug Report Dialog -->
     <string name="bug_report_dialog_before_reporting">First, please do the following:</string>
@@ -205,17 +357,6 @@
     <string name="snackbar_battery_optimization_home">Battery optimization must be disabled for start on boot/watchdog to work properly.</string>
     <string name="snackbar_battery_optimization_settings">Please disable battery optimization to use this feature.</string>
     <string name="snackbar_action_fix">Fix</string>
-    <string name="snackbar_update_available">A new update is available</string>
-    <string name="snackbar_action_update">Update</string>
-
-    <!-- Updates -->
-    <string name="check_for_updates">Check for updates</string>
-    <string name="update_latest_installed">The latest version is already installed</string>
-    <string name="update_check_failed">Unable to check for updates</string>
-    <string name="update_downloading">Downloading update...</string>
-    <string name="update_download_failed">Failed to download update</string>
-    <string name="update_success">Update successful</string>
-    <string name="update_failed">Update failed</string>
 
     <!-- Toast -->
     <string name="toast_no_email_app">No email app found</string>
@@ -268,11 +409,13 @@
     <string name="permission_label">access Shizuku</string>
     <string name="permission_description">Allow the app to use Shizuku.</string>
     <string name="permission_warning_template"><![CDATA[Allow <b>%1$s</b> to %2$s?]]></string>
+    <string name="permission_shared_uid_warning">This also grants access to other apps with the same UID: %1$s.</string>
     <string name="grant_dialog_button_allow_always">Allow all the time</string>
     <string name="grant_dialog_button_deny">"Deny"</string>
 
     <!-- Starter -->
     <string name="starter">Starter</string>
+    <string name="starter_copy_output">Copy output</string>
     <string name="starting_root_shell" translatable="false">Starting root shell…</string>
     <string name="start_with_root_failed">Can\'t start service because root permission is not granted or this device is not rooted.</string>
 
@@ -284,14 +427,20 @@
     <string name="wadb_error_notify_dev">Tap to notify the developer.</string>
     <string name="wadb_permission_error_notification_title">Permission Error</string>
     <string name="wadb_permission_error_notification_content">Shizuku needs WRITE_SECURE_SETTINGS to start on boot. Tap to learn how to grant it.</string>
+    <string name="wadb_unsupported_notification_title">Can\'t start in the background</string>
+    <string name="wadb_unsupported_notification_content">Pigu can\'t start automatically with the method used last time. Open Pigu, start the service manually, then try the automation intent again.</string>
+    <string name="wadb_debugging_settings_restricted_title">Debugging settings are restricted</string>
+    <string name="wadb_debugging_settings_restricted_content">Android requires USB and wireless debugging to be changed manually on this build. Tap to open Developer options.</string>
     <string name="wadb_notification_channel">ADB auto-start service</string>
 
     <!-- Watchdog -->
     <string name="watchdog_running">Watchdog is running</string>
     <string name="watchdog_turn_off">Turn Off</string>
     <string name="watchdog_shizuku_crashed_title">Shizuku crashed recently</string>
-    <string name="watchdog_shizuku_crashed_text">Watchdog restarted the service. Tap to learn about potential fixes to prevent future crashes.</string>
+    <string name="watchdog_shizuku_crashed_text">Watchdog is restarting the service. Tap to learn about potential fixes to prevent future crashes.</string>
     <string name="watchdog_shizuku_crashed_action_turn_off_alerts">Turn Off Alerts</string>
+    <string name="watchdog_gave_up_title">Watchdog paused</string>
+    <string name="watchdog_gave_up_text">Pigu could not restart the service after several attempts. Start it manually, or turn the watchdog off and on to try again.</string>
 
     <!-- Misc -->
     <string name="success">Success</string>
@@ -301,6 +450,140 @@
     <string name="dialog_cannot_open_browser_title">Can\'t start browser</string>
     <string name="toast_copied_to_clipboard">Copied to clipboard</string>
     <string name="accessibility_service_description">Provides pairing support for devices (e.g., TVs running Android 14+) where notifications or split screen cannot be used.\n\nEnables Shizuku to extract the pairing code from the wireless debugging pairing screen. It will disable itself once the pairing code is found.</string>
+
+    <!-- Audit log -->
+    <string name="audit_log_title">Access log</string>
+    <string name="audit_log_summary">Local only. Not included in cloud backup or device transfer.</string>
+    <string name="audit_log_empty">No events recorded yet.</string>
+    <string name="audit_log_copy">Copy</string>
+    <string name="audit_log_clear">Clear</string>
+    <string name="audit_log_close">Close</string>
+    <string name="audit_log_copy_header">Pigu access log\nLocal only; not included in cloud backup or device transfer.</string>
+    <string name="audit_log_clear_title">Clear access log?</string>
+    <string name="audit_log_clear_message">Delete every recorded access event from this device? This cannot be undone.</string>
+    <plurals name="audit_log_card_summary">
+        <item quantity="one">%1$d event recorded</item>
+        <item quantity="other">%1$d events recorded</item>
+    </plurals>
+    <plurals name="audit_log_summary_count">
+        <item quantity="one">%1$d event stored on this device. Local only.</item>
+        <item quantity="other">%1$d events stored on this device. Local only.</item>
+    </plurals>
+
+    <!-- Root warning -->
+    <string name="root_warning_title">Run Pigu as root?</string>
+    <string name="root_warning_message">Root mode gives the Pigu service full root access. Every app you authorize can then execute commands as root through Pigu, including apps you have forgotten about.\n\nOnly continue if you trust every app with access. You can revoke apps at any time in App Management.</string>
+    <string name="root_warning_continue">I understand, continue</string>
+    <string name="root_warning_background_blocked">Open Pigu and confirm the root warning before starting in root mode.</string>
+    <string name="root_warning_notification_title">Root start needs confirmation</string>
+    <string name="root_warning_notification_message">Open Pigu and confirm the root warning before automation or start-on-boot can use root mode.</string>
+    <string name="root_banner_title">Running as root</string>
+    <string name="root_banner_summary">Every authorized app can execute commands as root. Tap for details.</string>
+    <string name="root_banner_dialog_title">Pigu is running as root</string>
+    <string name="root_banner_dialog_message">The Pigu service is running as root, so every authorized app can execute arbitrary commands with root privileges. This is much more powerful than ADB mode.\n\nReview authorized apps in App Management and revoke any app you do not trust. To leave root mode, stop the service and start it with wireless debugging or ADB.</string>
+
+    <!-- App Management -->
+    <string name="app_management_search">Search apps</string>
+    <string name="app_management_search_hint">Search by name or package</string>
+    <string name="app_management_sort_title">Sort apps</string>
+    <string name="app_management_sort_name">Name</string>
+    <string name="app_management_sort_recent">Recently used</string>
+    <string name="app_management_filter_all">All</string>
+    <string name="app_management_filter_allowed">Allowed</string>
+    <string name="app_management_filter_denied">Denied</string>
+    <string name="app_management_filter_companion">Companion</string>
+    <string name="app_management_allow_access">Allow access</string>
+    <string name="app_management_open_app">Open app</string>
+    <string name="app_management_app_info">App info</string>
+    <string name="app_management_open_app_failed">Could not open this app.</string>
+    <string name="app_management_change_failed">Could not change access for this app.</string>
+    <string name="app_management_access_revoked">Access revoked for %1$s</string>
+    <string name="app_management_undo">Undo</string>
+    <string name="app_management_detail_uid">UID %1$d · user %2$d%3$s</string>
+    <string name="app_management_detail_version">Version %1$s (%2$d)</string>
+    <string name="app_management_detail_client_modern">Modern V3 client</string>
+    <string name="app_management_detail_client_legacy">Older client (no V3 support)</string>
+    <string name="app_management_detail_no_request">No recorded request yet.</string>
+    <string name="app_management_detail_last_request">Last request: %1$s · %2$s</string>
+    <string name="app_management_grant_all_title">Grant access to all apps?</string>
+    <string name="app_management_revoke_all_title">Revoke access from all apps?</string>
+    <string name="app_management_grant_all_action">Grant all</string>
+    <string name="app_management_revoke_all_action">Revoke all</string>
+    <string name="app_management_bulk_applying">Applying access changes…</string>
+    <plurals name="app_management_grant_all_message">
+        <item quantity="one">Grant access to %1$d app? It will be able to call Pigu.</item>
+        <item quantity="other">Grant access to all %1$d apps? They will be able to call Pigu.</item>
+    </plurals>
+    <plurals name="app_management_revoke_all_message">
+        <item quantity="one">Revoke access from %1$d app? It will have to request permission again.</item>
+        <item quantity="other">Revoke access from all %1$d apps? They will have to request permission again.</item>
+    </plurals>
+    <plurals name="app_management_bulk_granted">
+        <item quantity="one">Granted access to %1$d app.</item>
+        <item quantity="other">Granted access to %1$d apps.</item>
+    </plurals>
+    <plurals name="app_management_bulk_revoked">
+        <item quantity="one">Revoked access from %1$d app.</item>
+        <item quantity="other">Revoked access from %1$d apps.</item>
+    </plurals>
+
+    <!-- Service Doctor -->
+    <string name="service_doctor_title">Service Doctor</string>
+    <string name="service_doctor_card_summary">Check permissions and common start problems</string>
+    <string name="service_doctor_copy_diagnostics">Copy diagnostics</string>
+    <string name="service_doctor_refresh">Refresh</string>
+    <string name="service_doctor_action_open">Open</string>
+    <string name="service_doctor_action_start">Start</string>
+    <string name="service_doctor_action_fix">Fix</string>
+    <string name="service_doctor_action_grant">Grant</string>
+    <string name="service_doctor_action_settings">Settings</string>
+    <string name="service_doctor_action_app_info">App info</string>
+    <string name="service_doctor_action_view">View</string>
+    <string name="service_doctor_action_retry">Retry</string>
+    <string name="service_doctor_service_running">Service is running</string>
+    <string name="service_doctor_service_running_root">Running as root. Authorized apps can execute root commands.</string>
+    <string name="service_doctor_service_running_adb">Running as adb (UID %1$d).</string>
+    <string name="service_doctor_service_stopped">Service is not running</string>
+    <string name="service_doctor_service_manually_stopped">Stopped deliberately. The watchdog will not restart it until you start it.</string>
+    <string name="service_doctor_service_not_running">Start it with wireless debugging, ADB, or root.</string>
+    <string name="service_doctor_notifications">Notifications</string>
+    <string name="service_doctor_notifications_ok">Pairing and status notifications are allowed.</string>
+    <string name="service_doctor_notifications_blocked">Pairing cannot ask for the code when notifications are blocked.</string>
+    <string name="service_doctor_battery">Battery optimization</string>
+    <string name="service_doctor_battery_ok">Pigu is exempt from battery optimization.</string>
+    <string name="service_doctor_battery_optimized">Start-on-boot and the watchdog may be killed in the background.</string>
+    <string name="service_doctor_local_network">Local network access</string>
+    <string name="service_doctor_local_network_ok">Wireless discovery and pairing can use the local network.</string>
+    <string name="service_doctor_local_network_denied">Wireless discovery and pairing may fail without this permission.</string>
+    <string name="service_doctor_wireless">Wireless debugging</string>
+    <string name="service_doctor_wireless_ok">Wireless debugging is enabled.</string>
+    <string name="service_doctor_wireless_disabled">Wireless debugging is disabled; pairing cannot work.</string>
+    <string name="service_doctor_developer_options">Developer options</string>
+    <string name="service_doctor_developer_options_ok">USB and wireless debugging can be changed by Pigu.</string>
+    <string name="service_doctor_developer_options_disabled">Developer options are disabled.</string>
+    <string name="service_doctor_developer_options_restricted">Android requires debugging settings to be changed manually on this build.</string>
+    <string name="service_doctor_watchdog">Watchdog</string>
+    <string name="service_doctor_watchdog_ok">Watchdog is enabled and running.</string>
+    <string name="service_doctor_watchdog_not_running">Watchdog is enabled but its service is not running.</string>
+    <string name="service_doctor_watchdog_off">Watchdog is disabled. Crashes will not be recovered automatically.</string>
+    <string name="service_doctor_watchdog_last_restart">Last restart: %1$s.</string>
+    <string name="service_doctor_phantom">Phantom-process control</string>
+    <string name="service_doctor_phantom_on">Enabled globally. Android may still apply its own process limits.</string>
+    <string name="service_doctor_phantom_off">Disabled. This is the Android default.</string>
+    <string name="service_doctor_companion">Companion app</string>
+    <string name="service_doctor_companion_missing">Not installed. Only needed for apps that hard-code the official Shizuku package.</string>
+    <string name="service_doctor_companion_ok">Installed and signed by Pigu.</string>
+    <string name="service_doctor_companion_conflict">Another app owns moe.shizuku.privileged.api with a different signature.</string>
+    <string name="service_doctor_access_log">Access log</string>
+    <string name="service_doctor_access_log_empty">No access events recorded yet.</string>
+    <string name="service_doctor_access_log_summary">%1$d events recorded, %2$d denied.</string>
+    <string name="service_doctor_last_start">Last start</string>
+    <string name="service_doctor_last_start_none">No start has been recorded yet.</string>
+    <string name="service_doctor_last_start_ok">Succeeded at %1$s.</string>
+    <string name="service_doctor_last_start_failed">Failed at %1$s: %2$s</string>
+    <string name="service_doctor_unknown_error">Unknown error</string>
+    <string name="service_doctor_no_transcript">No transcript was saved for the last start.</string>
+    <string name="service_doctor_transcript_title">Last start transcript</string>
 
     <!-- Messages for legacy -->
     <string name="dialog_legacy_not_support_title">%1$s does not support modern Shizuku</string>

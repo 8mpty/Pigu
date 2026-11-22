@@ -21,20 +21,50 @@
             android:summary="@string/settings_watchdog_summary"
             android:title="@string/settings_watchdog" />
 
-        <SwitchPreferenceCompat
-            android:key="tcp_mode"
-            android:title="@string/settings_tcp_mode" 
-            android:defaultValue="true" />
+    </PreferenceCategory>
 
-        <EditTextPreference
-            android:key="tcp_port"
-            android:title="@string/settings_tcp_port"
-            android:inputType="number" />
+    <PreferenceCategory
+        android:key="category_access_control"
+        android:title="@string/settings_access_control">
+
+        <Preference
+            android:key="access_log"
+            android:persistent="false"
+            android:summary="@string/settings_access_log_summary"
+            android:title="@string/settings_access_log" />
+
+        <Preference
+            android:key="revoke_all_grants"
+            android:persistent="false"
+            android:summary="@string/settings_revoke_all_grants_summary"
+            android:title="@string/settings_revoke_all_grants" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="category_networking_adb"
+        android:title="@string/settings_networking_adb">
+
+        <Preference
+            android:key="tcp_mode"
+            android:persistent="false"
+            android:title="@string/settings_tcp_mode" />
 
         <SwitchPreferenceCompat
             android:key="auto_disable_usb_debugging"
             android:title="@string/settings_auto_disable_usb_debugging"
             android:summary="@string/settings_auto_disable_usb_debugging_summary" />
+
+        <SwitchPreferenceCompat
+            android:key="keep_wireless_debugging"
+            android:title="@string/settings_keep_wireless_debugging"
+            android:summary="@string/settings_keep_wireless_debugging_summary" />
+
+        <Preference
+            android:key="developer_options"
+            android:persistent="false"
+            android:title="@string/settings_developer_options"
+            android:summary="@string/settings_developer_options_summary" />
 
     </PreferenceCategory>
 
@@ -47,15 +77,6 @@
             android:key="language"
             android:summary="%s"
             android:title="@string/settings_language" />
-
-        <Preference
-            style="?preferenceInformationStyle"
-            android:key="translation_contributors"
-            android:title="@string/settings_translation_contributors" />
-
-        <Preference
-            android:key="translation"
-            android:title="@string/settings_translation" />
 
     </PreferenceCategory>
 
@@ -82,27 +103,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-        android:key="category_support"
-        android:title="@string/settings_support">
-
-        <moe.shizuku.manager.settings.IntegerSimpleMenuPreference
-            android:entries="@array/update_mode"
-            android:entryValues="@array/update_mode_value"
-            android:key="update_mode"
-            android:summary="%s"
-            android:title="@string/check_for_updates" />
-
-        <Preference
-            android:key="help"
-            android:title="@string/settings_help" />
-
-        <Preference
-            android:key="report_bug"
-            android:title="@string/settings_report_bug" />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory
         android:key="category_advanced"
         android:title="@string/settings_advanced">
 
@@ -110,6 +110,12 @@
             android:key="legacy_pairing"
             android:summary="@string/settings_legacy_pairing_summary"
             android:title="@string/settings_legacy_pairing" />
+
+        <SwitchPreferenceCompat
+            android:key="phantom_process_control"
+            android:persistent="false"
+            android:summary="@string/settings_phantom_process_summary"
+            android:title="@string/settings_phantom_process" />
 
     </PreferenceCategory>
 
